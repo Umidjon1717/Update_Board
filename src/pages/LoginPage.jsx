@@ -24,8 +24,8 @@ export default function LoginPage() {
     }
     try {
       setCredentials(sbUrl.trim(), sbKey.trim());
-      setMode('login');
-      setError('');
+      // Reload so AuthGate re-mounts with the new client and subscribes to auth changes
+      window.location.reload();
     } catch (err) {
       setError(err.message);
     }
@@ -35,12 +35,17 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    const result = await signIn(email, password);
-    if (result?.error) {
-      setError(result.error.message);
+    try {
+      const result = await signIn(email, password);
+      if (result?.error) {
+        setError(result.error.message);
+        setLoading(false);
+      }
+      // on success → onAuthStateChange in App.jsx fires and unmounts this page
+    } catch (err) {
+      setError(err?.message || 'Sign in failed. Check your credentials.');
       setLoading(false);
     }
-    // on success → onAuthStateChange in App.jsx fires and switches to main app
   }
 
   if (mode === 'setup') {
