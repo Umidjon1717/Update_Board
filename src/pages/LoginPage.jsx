@@ -18,9 +18,17 @@ export default function LoginPage() {
   function handleSetup(e) {
     e.preventDefault();
     if (!sbUrl.trim() || !sbKey.trim()) return;
-    setCredentials(sbUrl.trim(), sbKey.trim());
-    setMode('login');
-    setError('');
+    if (!sbUrl.trim().startsWith('https://')) {
+      setError('Project URL must start with https:// (e.g. https://xxxx.supabase.co)');
+      return;
+    }
+    try {
+      setCredentials(sbUrl.trim(), sbKey.trim());
+      setMode('login');
+      setError('');
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function handleLogin(e) {
@@ -43,21 +51,32 @@ export default function LoginPage() {
           <div className="login-title">UpdateBoard</div>
           <div className="login-sub">First-time setup — enter your Supabase credentials</div>
           <form className="login-form" onSubmit={handleSetup}>
-            <input
-              className="login-input"
-              placeholder="Supabase Project URL"
-              value={sbUrl}
-              onChange={e => setSbUrl(e.target.value)}
-              required
-            />
-            <input
-              className="login-input"
-              type="password"
-              placeholder="Publishable Key"
-              value={sbKey}
-              onChange={e => setSbKey(e.target.value)}
-              required
-            />
+            <div className="login-field">
+              <label className="login-label">Supabase Project URL</label>
+              <input
+                className="login-input"
+                placeholder="https://xxxx.supabase.co"
+                value={sbUrl}
+                onChange={e => setSbUrl(e.target.value)}
+                autoComplete="off"
+                required
+              />
+            </div>
+            <div className="login-field">
+              <label className="login-label">Publishable Key (from Supabase → Settings → API)</label>
+              <input
+                className="login-input"
+                type="password"
+                placeholder="sb_publishable_…"
+                value={sbKey}
+                onChange={e => setSbKey(e.target.value)}
+                autoComplete="off"
+                required
+              />
+            </div>
+            <div className="conn-help" style={{color:'#64748b',fontSize:'11px',marginBottom:'4px'}}>
+              This is a one-time setup. After this you will see the email/password login.
+            </div>
             <button className="login-btn" type="submit">Continue →</button>
           </form>
         </div>
