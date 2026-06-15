@@ -57,12 +57,21 @@ export function useBoard() {
     setDbStatus('connecting');
     dbLoad().then(data => {
       if (!data) { setDbStatus('error'); return; }
-      const d = migrateDrivers(data.drivers);
+      const rawDrivers = data.drivers || [];
+      // Detect old 'weekA'/'weekB' keys in the DB — need to push migrated data back
+      const hadOldKeys = rawDrivers.some(dr =>
+        Object.keys(dr.weeks || {}).some(k => k === 'weekA' || k === 'weekB')
+      );
+      const d = migrateDrivers(rawDrivers);
       const m = migrateMeta(data.meta || {});
       setDrivers(d);
       setMeta(m);
       lsSave(d, m);
       setDbStatus('connected');
+      if (hadOldKeys) {
+        // Re-push migrated data to fix the DB week keys
+        dbPushAll(d, m).catch(() => {});
+      }
       startSubscription();
     }).catch(() => setDbStatus('error'));
     return () => { if (unsubRef.current) unsubRef.current(); };
@@ -186,39 +195,45 @@ export function useBoard() {
 
   // ── closeWeek: archive current week and advance to next ───────────
   const closeWeek = useCallback(() => {
-    setDrivers(prevDrivers => {
-      setMeta(prevMeta => {
-        const weekKey = prevMeta.currentWeek;
-        const weekStats = prevDrivers.map(d => {
-          const st = calcWeekStats(d.weeks?.[weekKey] || {});
-          return { ...d, ...st };
-        });
-        const entry = {
-          id: Date.now(),
-          label: getWeekLabel(weekKey, prevMeta.startDate),
-          weekKey,
-          savedAt: new Date().toISOString(),
-          gross: weekStats.reduce((s, d) => s + d.gross, 0),
-          miles: weekStats.reduce((s, d) => s + d.miles, 0),
-          drivers: weekStats.map(d => ({
-            id: d.id, name: d.name, truck: d.truck,
-            week: JSON.parse(JSON.stringify(d.weeks?.[weekKey] || {})),
-            stats: { gross: d.gross, miles: d.miles, days: d.days, pm: d.pm },
-          })),
+    const weekKey = meta.currentWeek;
+    const entry = {
+      id: Date.now(),
+      label: getWeekLabel(weekKey, meta.startDate),
+      weekKey,
+      year: meta.year,
+      savedAt: new Date().toISOString(),
+      gross: drivers.reduce((s, d) => s + calcWeekStats(d.weeks?.[weekKey] || {}).gross, 0),
+      miles: drivers.reduce((s, d) => s + calcWeekStats(d.weeks?.[weekKey] || {}).miles, 0),
+      drivers: drivers.map(d => {
+        const st = calcWeekStats(d.weeks?.[weekKey] || {});
+        return {
+          id: d.id, name: d.name, truck: d.truck,
+          week: JSON.parse(JSON.stringify(d.weeks?.[weekKey] || {})),
+          stats: { gross: st.gross, miles: st.miles, days: st.days, pm: st.pm },
         };
-        const nextMeta = {
-          ...prevMeta,
-          currentWeek: getNextWeekKey(weekKey),
-          history: [entry, ...prevMeta.history],
-        };
-        lsSave(prevDrivers, nextMeta);
-        markSave();
-        dbSaveMeta(nextMeta).catch(() => {});
-        return nextMeta;
-      });
-      return prevDrivers;
-    });
-  }, []);
+      }),
+    };
+    const nextMeta = { ...meta, currentWeek: getNextWeekKey(weekKey), history: [entry, ...meta.history] };
+    setMeta(nextMeta);
+    lsSave(drivers, nextMeta);
+    markSave();
+    dbSaveMeta(nextMeta).catch(() => {});
+  }, [drivers, meta]);
+
+  // ── reopenWeek: undo a close-week (remove history entry, restore currentWeek) ──
+  const reopenWeek = useCallback((historyId) => {
+    const entry = meta.history.find(h => h.id === historyId);
+    if (!entry) return;
+    const nextMeta = {
+      ...meta,
+      currentWeek: entry.weekKey,
+      history: meta.history.filter(h => h.id !== historyId),
+    };
+    setMeta(nextMeta);
+    lsSave(drivers, nextMeta);
+    markSave();
+    dbSaveMeta(nextMeta).catch(() => {});
+  }, [drivers, meta]);
 
   // ── deleteHistory ─────────────────────────────────────────────────
   const deleteHistory = useCallback((id) => {
@@ -272,7 +287,7 @@ export function useBoard() {
     updateDay, updateDispatch,
     addDriver, removeDriver, renameDriver, updateDriverInfo,
     updateMeta, toggleDarkMode,
-    closeWeek, deleteHistory,
+    closeWeek, reopenWeek, deleteHistory,
     DAYS,
     connectDB, disconnectDB,
   };

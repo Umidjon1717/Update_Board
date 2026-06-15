@@ -4,7 +4,7 @@ import { getInitials, getAvatarColor } from '../data/initialData';
 const fmt$ = n => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function HistoryPage({ board }) {
-  const { meta, deleteHistory } = board;
+  const { meta, deleteHistory, reopenWeek } = board;
   const history = meta.history || [];
   const [expanded, setExpanded] = useState(null);
 
@@ -16,8 +16,8 @@ export default function HistoryPage({ board }) {
         </div>
         <div className="empty-state">
           <div className="empty-icon">🗂</div>
-          <div className="empty-title">No archived weeks yet</div>
-          <div className="empty-sub">Go to Weekly Board → click "📦 Archive" to save a week here</div>
+          <div className="empty-title">No closed weeks yet</div>
+          <div className="empty-sub">Go to Weekly Board → click "📅 Close Week" to archive the current week</div>
         </div>
       </div>
     );
@@ -28,7 +28,7 @@ export default function HistoryPage({ board }) {
       <div className="page-header">
         <div className="page-title-block">
           <h1 className="page-title">History</h1>
-          <span className="page-subtitle">{history.length} archived week{history.length !== 1 ? 's' : ''}</span>
+          <span className="page-subtitle">{history.length} closed week{history.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="hist-total">
           <span className="hist-total-lbl">Total Archived Gross</span>
@@ -37,15 +37,16 @@ export default function HistoryPage({ board }) {
       </div>
 
       <div className="history-list">
-        {history.map(h => {
-          const isOpen = expanded === h.id;
-          const sorted = [...(h.drivers || [])].sort((a, b) => (b.stats?.gross || 0) - (a.stats?.gross || 0));
+        {history.map((h, idx) => {
+          const isOpen   = expanded === h.id;
+          const isMostRecent = idx === 0;
+          const sorted   = [...(h.drivers || [])].sort((a, b) => (b.stats?.gross || 0) - (a.stats?.gross || 0));
           return (
             <div key={h.id} className="hist-card">
               <div className="hist-card-header" onClick={() => setExpanded(isOpen ? null : h.id)}>
                 <div className="hist-left">
                   <div className="hist-label">{h.label}</div>
-                  <div className="hist-date">{h.year} · Archived {new Date(h.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                  <div className="hist-date">{h.year} · Closed {new Date(h.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
                 <div className="hist-stats">
                   <div className="hist-stat"><span className="hs-val green">{fmt$(h.gross)}</span><span className="hs-lbl">Gross</span></div>
@@ -53,6 +54,18 @@ export default function HistoryPage({ board }) {
                   <div className="hist-stat"><span className="hs-val">{(h.drivers || []).length}</span><span className="hs-lbl">Drivers</span></div>
                 </div>
                 <div className="hist-actions">
+                  {isMostRecent && (
+                    <button
+                      className="btn-outline sm"
+                      title="Undo close — restore this as the current week"
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (confirm(`Reopen "${h.label}" as the current week? This removes it from history.`)) {
+                          reopenWeek(h.id);
+                        }
+                      }}
+                    >↩ Reopen</button>
+                  )}
                   <button className="btn-outline sm" onClick={e => { e.stopPropagation(); if (confirm('Delete this archived week?')) deleteHistory(h.id); }}>🗑 Delete</button>
                   <span className="hist-chevron">{isOpen ? '▲' : '▼'}</span>
                 </div>

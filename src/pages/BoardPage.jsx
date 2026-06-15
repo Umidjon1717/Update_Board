@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DayCell from '../components/DayCell';
 import {
   calcWeekStats, calcStreak, getInitials, getAvatarColor,
@@ -10,8 +10,15 @@ const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDig
 
 export default function BoardPage({ board }) {
   const { drivers, meta, updateDay, addDriver, removeDriver, renameDriver, closeWeek, allWeekKeys, updateMeta } = board;
-  const [viewWeek, setViewWeek] = useState(meta.currentWeek);
+  const [viewWeek, setViewWeek] = useState(meta.currentWeek || '2026-06-22');
   const [newName, setNewName] = useState('');
+
+  // If allWeekKeys changes (e.g. Supabase migration runs) and viewWeek is no longer valid, snap to currentWeek
+  useEffect(() => {
+    if (!allWeekKeys.includes(viewWeek)) {
+      setViewWeek(meta.currentWeek);
+    }
+  }, [allWeekKeys]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const weekIdx     = allWeekKeys.indexOf(viewWeek);
   const canPrev     = weekIdx > 0;

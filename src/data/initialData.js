@@ -73,10 +73,16 @@ export function migrateDrivers(drivers = []) {
   return drivers.map(d => {
     let weeks = {};
     if (d.weeks && typeof d.weeks === 'object' && !Array.isArray(d.weeks)) {
-      Object.entries(d.weeks).forEach(([wk, wkData]) => { weeks[wk] = migrateWeek(wkData); });
+      Object.entries(d.weeks).forEach(([wk, wkData]) => {
+        // Convert old 'weekA'/'weekB' string keys to ISO date keys
+        const key = wk === 'weekA' ? FLEET_START_DATE
+                  : wk === 'weekB' ? getNextWeekKey(FLEET_START_DATE)
+                  : wk;
+        weeks[key] = migrateWeek(wkData);
+      });
     } else {
-      // Old weekA/weekB format → map to date keys
-      if (d.weekA) weeks[FLEET_START_DATE]                = migrateWeek(d.weekA);
+      // Flat weekA/weekB properties (very old format)
+      if (d.weekA) weeks[FLEET_START_DATE]                 = migrateWeek(d.weekA);
       if (d.weekB) weeks[getNextWeekKey(FLEET_START_DATE)] = migrateWeek(d.weekB);
     }
     const { weekA, weekB, ...rest } = d;
