@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { calcWeekStats, calcStreak, getInitials, getAvatarColor, DAYS } from '../data/initialData';
+import { calcWeekStats, calcStreak, getInitials, getAvatarColor, getWeekLabel, blankDay, DAYS } from '../data/initialData';
 
-const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
+const fmt$  = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
 const fmtMi = n => n ? `${Number(n).toLocaleString()} mi` : '—';
 
 function StatBadge({ label, value, color }) {
@@ -17,7 +17,7 @@ function DayDots({ weekData }) {
   return (
     <div className="day-dots">
       {DAYS.map(day => {
-        const c = weekData[day];
+        const c = weekData?.[day] || blankDay();
         let cls = 'dot-empty';
         if (c.status === 'HOME') cls = 'dot-home';
         else if (c.status === 'TRANSIT') cls = 'dot-transit';
@@ -34,12 +34,14 @@ function DayDots({ weekData }) {
 }
 
 export default function DriversPage({ board }) {
-  const { drivers, meta, addDriver, removeDriver, renameDriver, updateDriverInfo } = board;
+  const { drivers, meta, allWeekKeys, addDriver, removeDriver, renameDriver, updateDriverInfo } = board;
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
 
-  const maxA = Math.max(...drivers.map(d => calcWeekStats(d.weekA).gross), 1);
-  const maxB = Math.max(...drivers.map(d => calcWeekStats(d.weekB).gross), 1);
+  const currentWeek = meta.currentWeek;
+  const currentLabel = getWeekLabel(currentWeek, meta.startDate);
+  const maxCur = Math.max(...drivers.map(d => calcWeekStats(d.weeks?.[currentWeek] || {}).gross), 1);
+
   const filtered = drivers.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
 
   function submit(e) { e.preventDefault(); if (newName.trim()) { addDriver(newName.trim()); setNewName(''); } }
@@ -62,12 +64,13 @@ export default function DriversPage({ board }) {
 
       <div className="drivers-grid">
         {filtered.map(driver => {
-          const stA = calcWeekStats(driver.weekA);
-          const stB = calcWeekStats(driver.weekB);
-          const color = getAvatarColor(driver.name);
+          const stCur = calcWeekStats(driver.weeks?.[currentWeek] || {});
+          const color  = getAvatarColor(driver.name);
           const streak = calcStreak(driver);
-          const pctA = (stA.gross / maxA) * 100;
-          const pctB = (stB.gross / maxB) * 100;
+          const pctCur = (stCur.gross / maxCur) * 100;
+
+          // All-time gross from all weeks
+          const allTimeGross = allWeekKeys.reduce((s, wk) => s + calcWeekStats(driver.weeks?.[wk] || {}).gross, 0);
 
           return (
             <div key={driver.id} className="driver-card">
@@ -105,32 +108,24 @@ export default function DriversPage({ board }) {
                   </div>
                 </div>
 
-                <div className="dc-week-label">{meta.weekA.label}</div>
+                <div className="dc-week-label">{currentLabel}</div>
                 <div className="dc-stats-row">
-                  <StatBadge label="Gross"  value={fmt$(stA.gross)}                        color="#22c55e" />
-                  <StatBadge label="Miles"  value={fmtMi(stA.miles)}                       color="#3b82f6" />
-                  <StatBadge label="$/mi"   value={stA.pm ? `$${stA.pm.toFixed(2)}` : '—'} color="#f59e0b" />
-                  <StatBadge label="Days"   value={stA.days}                               color="#8b5cf6" />
+                  <StatBadge label="Gross" value={fmt$(stCur.gross)}                          color="#22c55e" />
+                  <StatBadge label="Miles" value={fmtMi(stCur.miles)}                         color="#3b82f6" />
+                  <StatBadge label="$/mi"  value={stCur.pm ? `$${stCur.pm.toFixed(2)}` : '—'} color="#f59e0b" />
+                  <StatBadge label="Days"  value={stCur.days}                                 color="#8b5cf6" />
                 </div>
-                <div className="dc-progress-wrap"><div className="dc-progress" style={{ width: `${pctA}%`, background: color }} /></div>
-                <DayDots weekData={driver.weekA} />
-
-                <div className="dc-divider" />
-
-                <div className="dc-week-label">{meta.weekB.label}</div>
-                <div className="dc-stats-row">
-                  <StatBadge label="Gross"  value={fmt$(stB.gross)}                        color="#22c55e" />
-                  <StatBadge label="Miles"  value={fmtMi(stB.miles)}                       color="#3b82f6" />
-                  <StatBadge label="$/mi"   value={stB.pm ? `$${stB.pm.toFixed(2)}` : '—'} color="#f59e0b" />
-                  <StatBadge label="Days"   value={stB.days}                               color="#8b5cf6" />
+                <div className="dc-progress-wrap">
+                  <div className="dc-progress" style={{ width: `${pctCur}%`, background: color }} />
                 </div>
-                <div className="dc-progress-wrap"><div className="dc-progress" style={{ width: `${pctB}%`, background: color }} /></div>
-                <DayDots weekData={driver.weekB} />
+                <DayDots weekData={driver.weeks?.[currentWeek]} />
 
-                <div className="dc-total-row">
-                  <div className="dc-total-label">Combined Gross</div>
-                  <div className="dc-total-val">{fmt$(stA.gross + stB.gross)}</div>
-                </div>
+                {allWeekKeys.length > 1 && (
+                  <div className="dc-total-row">
+                    <div className="dc-total-label">All-Time Gross ({allWeekKeys.length} week{allWeekKeys.length !== 1 ? 's' : ''})</div>
+                    <div className="dc-total-val">{fmt$(allTimeGross)}</div>
+                  </div>
+                )}
               </div>
             </div>
           );

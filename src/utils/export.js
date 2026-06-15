@@ -1,9 +1,9 @@
-import { DAYS, calcWeekStats, getEffectivePm } from '../data/initialData';
+import { DAYS, calcWeekStats, getEffectivePm, blankDay } from '../data/initialData';
 
 function download(content, filename, mime = 'text/csv;charset=utf-8;') {
   const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
@@ -15,7 +15,7 @@ function download(content, filename, mime = 'text/csv;charset=utf-8;') {
 function esc(v) { return `"${String(v ?? '').replace(/"/g, '""')}"`; }
 function row(cells) { return cells.map(esc).join(','); }
 
-export function exportWeekCSV(drivers, week, weekLabel) {
+export function exportWeekCSV(drivers, weekKey, weekLabel) {
   const headers = [
     'Driver', 'Truck', 'Trailer', 'Phone',
     ...DAYS.flatMap(d => [`${d} Gross`, `${d} Miles`, `${d} $/mi`, `${d} Notes`, `${d} Status`]),
@@ -23,9 +23,10 @@ export function exportWeekCSV(drivers, week, weekLabel) {
   ];
 
   const rows = drivers.map(d => {
-    const st = calcWeekStats(d[week]);
+    const weekData = d.weeks?.[weekKey] || {};
+    const st = calcWeekStats(weekData);
     const dayData = DAYS.flatMap(day => {
-      const c = d[week][day];
+      const c = weekData[day] || blankDay();
       if (c.status !== 'driving') return ['', '', '', c.notes || '', c.status];
       const pm = getEffectivePm(c);
       return [c.dollars ?? '', c.miles ?? '', pm ? pm.toFixed(2) : '', c.notes || '', 'driving'];

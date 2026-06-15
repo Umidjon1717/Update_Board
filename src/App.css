@@ -202,30 +202,62 @@ input { font-family: inherit; }
   flex-wrap: wrap;
 }
 
-.week-tabs { display: flex; gap: 4px; }
-.week-tab {
+/* Week navigation (replaces old week-tabs) */
+.week-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  border: 2px solid var(--border);
   background: var(--surface);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+}
+.week-nav-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
   transition: all 0.15s;
 }
-.week-tab:hover { border-color: var(--primary); color: var(--primary); }
-.week-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
-.tab-chip {
-  font-size: 11px;
+.week-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.week-nav-btn:not(:disabled):hover { border-color: var(--primary); color: var(--primary); }
+.week-nav-label {
+  font-size: 13px;
   font-weight: 700;
-  background: rgba(255,255,255,0.25);
-  padding: 1px 8px;
-  border-radius: 20px;
+  color: var(--text);
+  min-width: 180px;
+  text-align: center;
+  white-space: nowrap;
 }
-.week-tab:not(.active) .tab-chip { background: var(--primary-light); color: var(--primary); }
+.btn-close-week {
+  padding: 8px 14px;
+  background: #f59e0b;
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-close-week:hover { background: #d97706; }
+
+/* Legacy (kept for potential HistoryPage use) */
+.week-tabs { display: flex; gap: 4px; }
+.week-tab {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+  border-radius: var(--radius-sm); border: 2px solid var(--border);
+  background: var(--surface); color: var(--text-muted);
+  font-size: 13px; font-weight: 600; transition: all 0.15s;
+}
+.week-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
 
 .add-form { display: flex; gap: 6px; margin-left: auto; }
 .add-input {
@@ -303,22 +335,7 @@ input { font-family: inherit; }
   min-width: 90px;
 }
 .th-day-name { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
-.th-day-num {
-  display: block;
-  width: 30px;
-  margin: 3px auto 0;
-  background: rgba(255,255,255,0.1);
-  border: none;
-  color: #94a3b8;
-  font-size: 11px;
-  text-align: center;
-  border-radius: 4px;
-  padding: 1px 0;
-  outline: none;
-}
-.th-day-num::-webkit-inner-spin-button, .th-day-num::-webkit-outer-spin-button { -webkit-appearance: none; }
-.th-day-num { -moz-appearance: textfield; }
-.th-day-num:focus { background: rgba(255,255,255,0.2); color: white; }
+.th-day-date { font-size: 10px; color: #94a3b8; margin-top: 2px; }
 
 .th-total {
   background: #1e293b;

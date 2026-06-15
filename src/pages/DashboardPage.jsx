@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Cell, Legend } from 'recharts';
-import { calcWeekStats, getDailyTotals, DAYS } from '../data/initialData';
+import { calcWeekStats, getDailyTotals, getWeekLabel, DAYS } from '../data/initialData';
 
-const fmt$ = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const fmt$  = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const fmt$2 = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f43f5e','#ec4899','#06b6d4','#84cc16'];
 
@@ -21,27 +21,54 @@ function Tip({ active, payload, label }) {
 }
 
 export default function DashboardPage({ board }) {
-  const { drivers, meta } = board;
-  const [view, setView] = useState('weekA');
+  const { drivers, meta, allWeekKeys } = board;
 
-  const statsA = drivers.map(d => ({ name: d.name.split(' ')[0], full: d.name, ...calcWeekStats(d.weekA) }));
-  const statsB = drivers.map(d => ({ name: d.name.split(' ')[0], full: d.name, ...calcWeekStats(d.weekB) }));
-  const current = view === 'weekB' ? statsB : statsA;
+  // Default to current week; allow switching to any known week
+  const [viewWeek, setViewWeek] = useState(meta.currentWeek);
 
-  const grandGross  = current.reduce((s, d) => s + d.gross, 0);
-  const grandMiles  = current.reduce((s, d) => s + d.miles, 0);
-  const monthlyGross = drivers.reduce((s, d) => s + calcWeekStats(d.weekA).gross + calcWeekStats(d.weekB).gross, 0);
-  const activeDrivers = current.filter(d => d.days > 0).length;
-  const topDriver = [...current].sort((a, b) => b.gross - a.gross)[0];
-  const historyGross = (meta.history || []).reduce((s, h) => s + (h.gross || 0), 0);
+  // Previous week (for comparison)
+  const viewIdx  = allWeekKeys.indexOf(viewWeek);
+  const prevWeek = viewIdx > 0 ? allWeekKeys[viewIdx - 1] : null;
 
-  const barData = [...current].filter(d => d.gross > 0).sort((a, b) => b.gross - a.gross);
-  const dailyA = getDailyTotals(drivers, 'weekA');
-  const dailyB = getDailyTotals(drivers, 'weekB');
-  const trendData = DAYS.map((day, i) => ({ day, [meta.weekA.label]: dailyA[i].total, [meta.weekB.label]: dailyB[i].total }));
-  const compareData = drivers
-    .map(d => ({ name: d.name.split(' ')[0], [meta.weekA.label]: calcWeekStats(d.weekA).gross, [meta.weekB.label]: calcWeekStats(d.weekB).gross }))
-    .filter(d => d[meta.weekA.label] > 0 || d[meta.weekB.label] > 0);
+  const currentLabel = getWeekLabel(viewWeek, meta.startDate);
+  const prevLabel    = prevWeek ? getWeekLabel(prevWeek, meta.startDate) : null;
+
+  const currentStats = drivers.map(d => ({
+    name: d.name.split(' ')[0], full: d.name,
+    ...calcWeekStats(d.weeks?.[viewWeek] || {}),
+  }));
+  const prevStats = prevWeek
+    ? drivers.map(d => ({ name: d.name.split(' ')[0], ...calcWeekStats(d.weeks?.[prevWeek] || {}) }))
+    : null;
+
+  const grandGross    = currentStats.reduce((s, d) => s + d.gross, 0);
+  const grandMiles    = currentStats.reduce((s, d) => s + d.miles, 0);
+  const activeDrivers = currentStats.filter(d => d.days > 0).length;
+  const topDriver     = [...currentStats].sort((a, b) => b.gross - a.gross)[0];
+  const historyGross  = (meta.history || []).reduce((s, h) => s + (h.gross || 0), 0);
+  const allTimeGross  = historyGross + drivers.reduce((s, d) => {
+    return s + allWeekKeys.reduce((ws, wk) => ws + calcWeekStats(d.weeks?.[wk] || {}).gross, 0);
+  }, 0);
+
+  const barData  = [...currentStats].filter(d => d.gross > 0).sort((a, b) => b.gross - a.gross);
+  const dailyCur = getDailyTotals(drivers, viewWeek);
+  const dailyPrv = prevWeek ? getDailyTotals(drivers, prevWeek) : null;
+
+  const trendData = DAYS.map((day, i) => {
+    const entry = { day, [currentLabel]: dailyCur[i].total };
+    if (dailyPrv) entry[prevLabel] = dailyPrv[i].total;
+    return entry;
+  });
+
+  const compareData = prevWeek
+    ? drivers
+        .map(d => ({
+          name: d.name.split(' ')[0],
+          [currentLabel]: calcWeekStats(d.weeks?.[viewWeek] || {}).gross,
+          [prevLabel]:    calcWeekStats(d.weeks?.[prevWeek] || {}).gross,
+        }))
+        .filter(d => d[currentLabel] > 0 || d[prevLabel] > 0)
+    : [];
 
   return (
     <div className="page">
@@ -50,25 +77,22 @@ export default function DashboardPage({ board }) {
           <h1 className="page-title">Dashboard</h1>
           <span className="page-subtitle">{meta.year} Analytics</span>
         </div>
-        <div className="seg-ctrl">
-          {['weekA', 'weekB'].map(v => (
-            <button key={v} className={`seg-btn${view === v ? ' active' : ''}`} onClick={() => setView(v)}>
-              {v === 'weekA' ? meta.weekA.label : meta.weekB.label}
-            </button>
-          ))}
-        </div>
+        {allWeekKeys.length > 1 && (
+          <div className="seg-ctrl" style={{ flexWrap: 'wrap', maxWidth: 480 }}>
+            {[...allWeekKeys].reverse().slice(0, 4).map(wk => (
+              <button key={wk} className={`seg-btn${viewWeek === wk ? ' active' : ''}`} onClick={() => setViewWeek(wk)}>
+                {getWeekLabel(wk, meta.startDate).split(' · ')[0]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="kpi-grid">
         <div className="kpi-card green">
           <div className="kpi-card-icon">💰</div>
           <div className="kpi-card-val">{fmt$2(grandGross)}</div>
-          <div className="kpi-card-lbl">Week Gross</div>
-        </div>
-        <div className="kpi-card purple">
-          <div className="kpi-card-icon">📅</div>
-          <div className="kpi-card-val">{fmt$2(monthlyGross)}</div>
-          <div className="kpi-card-lbl">Combined (Both Weeks)</div>
+          <div className="kpi-card-lbl">{currentLabel} Gross</div>
         </div>
         <div className="kpi-card blue">
           <div className="kpi-card-icon">🛣️</div>
@@ -96,17 +120,24 @@ export default function DashboardPage({ board }) {
           <div className="kpi-card-lbl">Avg per Driver</div>
         </div>
         {meta.history?.length > 0 && (
+          <div className="kpi-card purple">
+            <div className="kpi-card-icon">📅</div>
+            <div className="kpi-card-val">{fmt$2(allTimeGross)}</div>
+            <div className="kpi-card-lbl">All-Time Gross</div>
+          </div>
+        )}
+        {meta.history?.length > 0 && (
           <div className="kpi-card indigo">
             <div className="kpi-card-icon">🗂</div>
-            <div className="kpi-card-val">{fmt$2(historyGross)}</div>
-            <div className="kpi-card-lbl">Archived Gross ({meta.history.length} weeks)</div>
+            <div className="kpi-card-val">{meta.history.length}</div>
+            <div className="kpi-card-lbl">Archived Weeks</div>
           </div>
         )}
       </div>
 
       <div className="charts-grid">
         <div className="chart-card wide">
-          <div className="chart-card-title">Earnings by Driver — {view === 'weekA' ? meta.weekA.label : meta.weekB.label}</div>
+          <div className="chart-card-title">Earnings by Driver — {currentLabel}</div>
           {barData.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={barData} margin={{ top: 8, right: 16, left: 8, bottom: 60 }}>
@@ -127,38 +158,43 @@ export default function DashboardPage({ board }) {
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={trendData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
               <defs>
-                <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="gCur" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} /><stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
+                {prevWeek && (
+                  <linearGradient id="gPrv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                )}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
               <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-              <Tooltip content={<Tip />} /><Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area type="monotone" dataKey={meta.weekA.label} stroke="#22c55e" fill="url(#gA)" strokeWidth={2} dot={{ r: 3 }} />
-              <Area type="monotone" dataKey={meta.weekB.label} stroke="#3b82f6" fill="url(#gB)" strokeWidth={2} dot={{ r: 3 }} />
+              <Tooltip content={<Tip />} />
+              {prevWeek && <Legend wrapperStyle={{ fontSize: 11 }} />}
+              <Area type="monotone" dataKey={currentLabel} stroke="#22c55e" fill="url(#gCur)" strokeWidth={2} dot={{ r: 3 }} />
+              {prevWeek && (
+                <Area type="monotone" dataKey={prevLabel} stroke="#3b82f6" fill="url(#gPrv)" strokeWidth={2} dot={{ r: 3 }} />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="chart-card">
-          <div className="chart-card-title">Week A vs Week B per Driver</div>
-          {compareData.length > 0 ? (
+        {compareData.length > 0 && (
+          <div className="chart-card">
+            <div className="chart-card-title">{currentLabel} vs {prevLabel} per Driver</div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={compareData} margin={{ top: 8, right: 16, left: 8, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} angle={-30} textAnchor="end" interval={0} />
                 <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                 <Tooltip content={<Tip />} /><Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey={meta.weekA.label} fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey={meta.weekB.label} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={currentLabel} fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={prevLabel}    fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <div className="chart-empty">No data yet</div>}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

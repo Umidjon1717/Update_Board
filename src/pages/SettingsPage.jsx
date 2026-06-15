@@ -2,31 +2,19 @@ import { useState } from 'react';
 import { getCredentials } from '../lib/supabase';
 
 export default function SettingsPage({ board }) {
-  const { meta, dbStatus, updateMeta, updateThreshold, toggleDarkMode, connectDB, disconnectDB } = board;
-  const [thresh,   setThresh]   = useState(meta.threshold ?? 2.00);
-  const [yearVal,  setYearVal]  = useState(meta.year);
-  const [wkALabel, setWkALabel] = useState(meta.weekA.label);
-  const [wkBLabel, setWkBLabel] = useState(meta.weekB.label);
+  const { meta, dbStatus, updateMeta, toggleDarkMode, connectDB, disconnectDB } = board;
+  const [yearVal, setYearVal] = useState(meta.year);
 
   const creds = getCredentials();
-  const [sbUrl,     setSbUrl]     = useState(creds.url);
-  const [sbKey,     setSbKey]     = useState(creds.key);
-  const [connMsg,   setConnMsg]   = useState('');
-  const [connBusy,  setConnBusy]  = useState(false);
-  const [showKey,   setShowKey]   = useState(false);
+  const [sbUrl,    setSbUrl]    = useState(creds.url);
+  const [sbKey,    setSbKey]    = useState(creds.key);
+  const [connMsg,  setConnMsg]  = useState('');
+  const [connBusy, setConnBusy] = useState(false);
+  const [showKey,  setShowKey]  = useState(false);
 
   function saveGeneral() {
-    updateMeta({
-      year:  parseInt(yearVal) || meta.year,
-      weekA: { ...meta.weekA, label: wkALabel || 'Week 1' },
-      weekB: { ...meta.weekB, label: wkBLabel || 'Week 2' },
-    });
+    updateMeta({ year: parseInt(yearVal) || meta.year });
     alert('Saved!');
-  }
-
-  function saveThreshold() {
-    updateThreshold(thresh);
-    alert(`Alert set: below $${Number(thresh).toFixed(2)}/mi will be highlighted.`);
   }
 
   async function handleConnect() {
@@ -118,9 +106,7 @@ export default function SettingsPage({ board }) {
                   </button>
                 </div>
               </div>
-              <div className="conn-help">
-                Find these in Supabase → Project Settings → API
-              </div>
+              <div className="conn-help">Find these in Supabase → Project Settings → API</div>
               <button className="btn-primary" onClick={handleConnect} disabled={connBusy}>
                 {connBusy ? 'Connecting…' : 'Connect'}
               </button>
@@ -142,14 +128,6 @@ export default function SettingsPage({ board }) {
             <label className="settings-label">Year</label>
             <input className="settings-input" type="number" value={yearVal} onChange={e => setYearVal(e.target.value)} />
           </div>
-          <div className="settings-field">
-            <label className="settings-label">Week A Label</label>
-            <input className="settings-input" value={wkALabel} onChange={e => setWkALabel(e.target.value)} placeholder="Week 1" />
-          </div>
-          <div className="settings-field">
-            <label className="settings-label">Week B Label</label>
-            <input className="settings-input" value={wkBLabel} onChange={e => setWkBLabel(e.target.value)} placeholder="Week 2" />
-          </div>
           <button className="btn-primary" onClick={saveGeneral}>Save Changes</button>
         </div>
 
@@ -164,35 +142,6 @@ export default function SettingsPage({ board }) {
             <button className={`toggle-btn${meta.darkMode ? ' on' : ''}`} onClick={toggleDarkMode}>
               <div className="toggle-knob" />
             </button>
-          </div>
-        </div>
-
-        {/* ── Low $/mi Alert ── */}
-        <div className="settings-card">
-          <div className="settings-card-title">Low $/mi Alert</div>
-          <p className="settings-desc">Cells where the rate drops below this threshold will be highlighted in red on the Weekly Board.</p>
-          <div className="settings-field">
-            <label className="settings-label">Threshold ($/mi)</label>
-            <div className="settings-input-group">
-              <span className="settings-prefix">$</span>
-              <input
-                className="settings-input prefix"
-                type="number" step="0.01" min="0"
-                value={thresh}
-                onChange={e => setThresh(e.target.value)}
-              />
-              <span className="settings-suffix">/mi</span>
-            </div>
-          </div>
-          <div className="thresh-preview">
-            <div className="thresh-example ok">$2.80/mi — OK</div>
-            <div className="thresh-example warn">$1.90/mi — ⚠ Below threshold</div>
-          </div>
-          <div className="settings-actions">
-            <button className="btn-primary" onClick={saveThreshold}>Save Threshold</button>
-            {meta.threshold > 0 && (
-              <button className="btn-outline" onClick={() => { updateThreshold(0); setThresh(0); }}>Disable Alert</button>
-            )}
           </div>
         </div>
 

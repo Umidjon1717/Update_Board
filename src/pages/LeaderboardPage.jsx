@@ -1,23 +1,23 @@
 import { useState } from 'react';
-import { calcWeekStats, getInitials, getAvatarColor } from '../data/initialData';
+import { calcWeekStats, getInitials, getAvatarColor, getWeekLabel } from '../data/initialData';
 
-const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
+const fmt$  = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
 const fmtMi = n => n ? `${Number(n).toLocaleString()} mi` : '—';
 
-const MEDALS = ['🥇', '🥈', '🥉'];
+const MEDALS       = ['🥇', '🥈', '🥉'];
 const MEDAL_COLORS = ['#f59e0b', '#94a3b8', '#cd7f32'];
 
 export default function LeaderboardPage({ board }) {
-  const { drivers, meta } = board;
-  const [activeWeek, setActiveWeek] = useState('weekA');
+  const { drivers, meta, allWeekKeys } = board;
+  const [viewWeek, setViewWeek] = useState(meta.currentWeek);
 
   const ranked = drivers
-    .map(d => ({ ...d, ...calcWeekStats(d[activeWeek]) }))
+    .map(d => ({ ...d, ...calcWeekStats(d.weeks?.[viewWeek] || {}) }))
     .sort((a, b) => b.gross - a.gross);
 
   const maxGross = ranked[0]?.gross || 1;
-  const top3 = ranked.slice(0, 3);
-  const rest = ranked.slice(3);
+  const top3     = ranked.slice(0, 3);
+  const rest     = ranked.slice(3);
 
   return (
     <div className="page">
@@ -26,13 +26,17 @@ export default function LeaderboardPage({ board }) {
           <h1 className="page-title">Leaderboard</h1>
           <span className="page-subtitle">Who's crushing it this week</span>
         </div>
-        <div className="seg-ctrl">
-          <button className={`seg-btn${activeWeek === 'weekA' ? ' active' : ''}`} onClick={() => setActiveWeek('weekA')}>{meta.weekA.label}</button>
-          <button className={`seg-btn${activeWeek === 'weekB' ? ' active' : ''}`} onClick={() => setActiveWeek('weekB')}>{meta.weekB.label}</button>
-        </div>
+        {allWeekKeys.length > 1 && (
+          <div className="seg-ctrl" style={{ flexWrap: 'wrap', maxWidth: 480 }}>
+            {[...allWeekKeys].reverse().slice(0, 4).map(wk => (
+              <button key={wk} className={`seg-btn${viewWeek === wk ? ' active' : ''}`} onClick={() => setViewWeek(wk)}>
+                {getWeekLabel(wk, meta.startDate).split(' · ')[0]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Podium */}
       <div className="podium-section">
         {top3.length >= 2 && (
           <div className="podium-card p2">
@@ -76,7 +80,6 @@ export default function LeaderboardPage({ board }) {
         )}
       </div>
 
-      {/* Full ranked table */}
       <div className="lb-table-wrap">
         <table className="lb-table">
           <thead>
@@ -92,7 +95,7 @@ export default function LeaderboardPage({ board }) {
           </thead>
           <tbody>
             {ranked.map((d, i) => {
-              const pct = maxGross > 0 ? (d.gross / maxGross) * 100 : 0;
+              const pct   = maxGross > 0 ? (d.gross / maxGross) * 100 : 0;
               const color = getAvatarColor(d.name);
               return (
                 <tr key={d.id} className={`lb-row${i < 3 ? ' lb-top' : ''}`}>

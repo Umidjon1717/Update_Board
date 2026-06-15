@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { getEffectivePm } from '../data/initialData';
+import { getMiles } from '../data/initialData';
 
 const fmt$ = n => n != null ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '';
 
-export default function DayCell({ data, onUpdate, threshold }) {
+export default function DayCell({ data, onUpdate }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(null);
   const ref = useRef(null);
 
-  useEffect(() => { if (open) setDraft({ ...data }); }, [open]);
+  useEffect(() => { if (open) setDraft({ ...data }); }, [open, data]);
 
   useEffect(() => {
     if (!open) return;
@@ -22,32 +22,33 @@ export default function DayCell({ data, onUpdate, threshold }) {
     setOpen(false);
   }
 
-  function setField(field, raw) {
-    const val = raw !== '' ? parseFloat(raw) : null;
+  function setGross(raw) {
+    const dollars = raw !== '' ? parseFloat(raw) : null;
     setDraft(prev => {
-      const next = { ...prev, [field]: val };
-      // pm entered + miles → auto-fill dollars
-      if (field === 'pm' && val != null && next.miles) next.dollars = parseFloat((val * next.miles).toFixed(2));
-      // miles changed + manual pm → auto-fill dollars
-      if (field === 'miles' && prev.pm != null && val) next.dollars = parseFloat((prev.pm * val).toFixed(2));
-      // dollars entered manually → clear manual pm so it stays auto-calc
-      if (field === 'dollars') next.pm = null;
-      return next;
+      const pm = prev.pm;
+      const miles = dollars && pm && pm > 0 ? parseFloat((dollars / pm).toFixed(1)) : null;
+      return { ...prev, dollars, miles };
     });
   }
 
-  const { status, dollars, miles, notes } = data;
-  const effectivePm = getEffectivePm(data);
-  const isLow = threshold > 0 && effectivePm != null && effectivePm < threshold;
+  function setPm(raw) {
+    const pm = raw !== '' ? parseFloat(raw) : null;
+    setDraft(prev => {
+      const dollars = prev.dollars;
+      const miles = dollars && pm && pm > 0 ? parseFloat((dollars / pm).toFixed(1)) : null;
+      return { ...prev, pm, miles };
+    });
+  }
 
-  const draftPm = draft ? getEffectivePm(draft) : null;
-  const isManualPm = draft?.pm != null;
+  const { status, dollars, pm, notes } = data;
+  const miles = getMiles(data);
+  const displayPm = pm ?? (miles > 0 && dollars ? dollars / miles : null);
 
   return (
-    <td className={`day-td${isLow ? ' cell-low-pm' : ''}`}>
+    <td className="day-td">
       <div ref={ref} className="day-cell-wrap">
         <div
-          className={`day-cell status-${status}${!dollars && status === 'driving' ? ' empty' : ''}${isLow ? ' low-pm' : ''}`}
+          className={`day-cell status-${status}${!dollars && status === 'driving' ? ' empty' : ''}`}
           onClick={() => setOpen(o => !o)}
         >
           {status === 'HOME'    && <span className="pill home">🏠 HOME</span>}
@@ -56,23 +57,22 @@ export default function DayCell({ data, onUpdate, threshold }) {
             dollars
               ? <>
                   <div className="cell-dollars">{fmt$(dollars)}</div>
-                  {miles != null && <div className="cell-miles">{Number(miles).toLocaleString()} mi</div>}
-                  {effectivePm && <div className={`cell-pm${isLow ? ' pm-warn' : ''}`}>${effectivePm.toFixed(2)}/mi</div>}
+                  {miles > 0 && <div className="cell-miles">{Number(miles).toLocaleString(undefined, { maximumFractionDigits: 0 })} mi</div>}
+                  {displayPm && <div className="cell-pm">${displayPm.toFixed(2)}/mi</div>}
                   {notes && <div className="cell-note-dot" title={notes}>●</div>}
                 </>
               : <div className="cell-plus">+</div>
           )}
-          {isLow && <div className="low-pm-bar" />}
         </div>
 
-        {open && (
+        {open && draft && (
           <div className="popover">
             <div className="pop-title">Edit Day</div>
             <div className="pop-statuses">
               {['driving', 'HOME', 'TRANSIT'].map(s => (
                 <button
                   key={s}
-                  className={`pop-s${draft?.status === s ? ' sel' : ''} pop-s-${s}`}
+                  className={`pop-s${draft.status === s ? ' sel' : ''} pop-s-${s}`}
                   onClick={() => setDraft(d => ({ ...d, status: s }))}
                 >
                   {s === 'driving' ? '🚛 Driving' : s === 'HOME' ? '🏠 Home' : '🔄 Transit'}
@@ -80,7 +80,7 @@ export default function DayCell({ data, onUpdate, threshold }) {
               ))}
             </div>
 
-            {draft?.status === 'driving' && (
+            {draft.status === 'driving' && (
               <div className="pop-fields">
                 <div className="pop-row-2">
                   <div className="pop-field">
@@ -89,51 +89,31 @@ export default function DayCell({ data, onUpdate, threshold }) {
                       className="pop-input"
                       type="number"
                       value={draft.dollars ?? ''}
-                      onChange={e => setField('dollars', e.target.value)}
-                      placeholder="0.00"
+                      onChange={e => setGross(e.target.value)}
+                      placeholder="0"
                       autoFocus
                       onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
                     />
                   </div>
                   <div className="pop-field">
-                    <label className="pop-label">Miles</label>
+                    <label className="pop-label">$/mi Rate</label>
                     <input
                       className="pop-input"
                       type="number"
-                      value={draft.miles ?? ''}
-                      onChange={e => setField('miles', e.target.value)}
-                      placeholder="0"
+                      step="0.01"
+                      value={draft.pm ?? ''}
+                      onChange={e => setPm(e.target.value)}
+                      placeholder="e.g. 2.50"
                       onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
                     />
                   </div>
                 </div>
 
-                <div className="pop-field">
-                  <label className="pop-label">
-                    $/mi
-                    {isManualPm
-                      ? <span className="pm-tag manual">manual</span>
-                      : draftPm ? <span className="pm-tag auto">auto</span> : null
-                    }
-                  </label>
-                  <input
-                    className={`pop-input${isManualPm ? ' pm-manual-input' : ''}`}
-                    type="number"
-                    step="0.01"
-                    value={draft?.pm ?? (draftPm ? draftPm.toFixed(2) : '')}
-                    onChange={e => setField('pm', e.target.value)}
-                    placeholder={draftPm ? draftPm.toFixed(2) : 'e.g. 2.50'}
-                    onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
-                  />
-                  {isManualPm && (
-                    <button className="pm-clear" onClick={() => setDraft(d => ({ ...d, pm: null }))}>
-                      ✕ clear override
-                    </button>
-                  )}
-                </div>
-
-                {threshold > 0 && draftPm != null && draftPm < threshold && (
-                  <div className="pop-warn">⚠ Below ${threshold.toFixed(2)}/mi threshold</div>
+                {draft.dollars && draft.pm && draft.pm > 0 && (
+                  <div className="pop-calc-miles">
+                    Miles: <strong>{(draft.dollars / draft.pm).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                    <span className="pop-calc-note"> (auto)</span>
+                  </div>
                 )}
 
                 <div className="pop-field">
