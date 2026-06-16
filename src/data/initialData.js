@@ -1,5 +1,5 @@
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-export const FLEET_START_DATE = '2026-06-22'; // first Monday
+export const FLEET_START_DATE = '2026-06-15'; // first Monday — Week 1
 
 export const DISPATCH_STATUSES = ['READY', 'DISPATCHED', 'ENROUTE', 'RESERVED', 'HOME'];
 export const STATUS_CFG = {
@@ -125,14 +125,15 @@ export function migrateDrivers(drivers = []) {
   });
 }
 
-// Note: currentWeek is intentionally NOT part of meta — it's derived fresh
-// from the real calendar date every time (see getRealCurrentWeekKey), never
-// stored. Storing it let stale/incorrect values survive across reloads.
+// Note: currentWeek and startDate are intentionally NOT read from stored meta
+// — they always come straight from the FLEET_START_DATE constant / the real
+// calendar date (see getRealCurrentWeekKey). Storing either let stale or
+// outdated values survive across reloads and Supabase syncs indefinitely.
 export function migrateMeta(meta = {}) {
   return {
-    startDate: meta.startDate || FLEET_START_DATE,
-    darkMode:  meta.darkMode  ?? false,
-    year:      meta.year      || 2026,
+    startDate: FLEET_START_DATE,
+    darkMode:  meta.darkMode ?? false,
+    year:      meta.year     || 2026,
   };
 }
 
