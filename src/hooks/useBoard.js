@@ -253,8 +253,14 @@ export function useBoard() {
     setDbStatus('local');
   }, []);
 
+  // Every page lists drivers alphabetically — sort once here rather than in
+  // each page, so Board/Drivers/Dispatch always agree on the order.
+  const sortedDrivers = useMemo(() => (
+    [...drivers].sort((a, b) => a.name.localeCompare(b.name))
+  ), [drivers]);
+
   return {
-    drivers, meta, dbStatus, allWeekKeys, currentWeek,
+    drivers: sortedDrivers, meta, dbStatus, allWeekKeys, currentWeek,
     updateDay, updateDispatch,
     addDriver, removeDriver, renameDriver, updateDriverInfo,
     updateMeta, toggleDarkMode,

@@ -10,7 +10,7 @@ const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDig
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function BoardPage({ board }) {
-  const { drivers, meta, currentWeek, updateDay, addDriver, removeDriver, renameDriver, allWeekKeys, updateMeta } = board;
+  const { drivers, meta, currentWeek, updateDay, addDriver, renameDriver, allWeekKeys, updateMeta } = board;
   const [viewWeek, setViewWeek] = useState(currentWeek);
   const [newName, setNewName] = useState('');
 
@@ -132,7 +132,6 @@ export default function BoardPage({ board }) {
                         </div>
                         <div className="d-bar-wrap"><div className="d-bar" style={{ width: `${pct}%`, background: color }} /></div>
                       </div>
-                      <button className="btn-rm no-print" onClick={() => { if (confirm(`Remove ${driver.name}?`)) removeDriver(driver.id); }}>✕</button>
                     </div>
                   </td>
                   {DAYS.map(day => {

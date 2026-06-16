@@ -290,6 +290,8 @@ input { font-family: inherit; }
 ═══════════════════════════════════════════════════════ */
 .board-scroll {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 230px);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   background: var(--surface);
@@ -312,7 +314,8 @@ input { font-family: inherit; }
   min-width: 200px;
   position: sticky;
   left: 0;
-  z-index: 20;
+  top: 0;
+  z-index: 25;
 }
 .week-label-input {
   background: transparent;
@@ -334,6 +337,9 @@ input { font-family: inherit; }
   padding: 6px 4px;
   width: 105px;
   min-width: 90px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
 }
 .th-day-name { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
 .th-day-date { font-size: 10px; color: #94a3b8; margin-top: 2px; }
@@ -348,7 +354,8 @@ input { font-family: inherit; }
   width: 120px;
   position: sticky;
   right: 0;
-  z-index: 20;
+  top: 0;
+  z-index: 25;
 }
 
 /* Driver rows */
@@ -1307,10 +1314,11 @@ input { font-family: inherit; }
   .app-layout { display: block; }
   .app-main { margin-left: 0; }
   .page { padding: 8px; gap: 8px; }
-  .board-scroll { overflow: visible; box-shadow: none; border: 1px solid #ccc; }
+  .board-scroll { overflow: visible; max-height: none; box-shadow: none; border: 1px solid #ccc; }
   .btable { font-size: 8px; min-width: unset; }
   .th-driver, .td-driver { width: 120px; min-width: 100px; position: static; }
   .th-total, .td-total { position: static; }
+  .th-day { position: static; }
   .day-cell { height: 40px; }
   .popover { display: none !important; }
   .page-title { font-size: 16px; }
