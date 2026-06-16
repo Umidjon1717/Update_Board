@@ -9,12 +9,12 @@ function monthLabel(weekKey) {
 }
 
 export default function HistoryPage({ board }) {
-  const { drivers, meta, allWeekKeys } = board;
+  const { drivers, meta, allWeekKeys, currentWeek } = board;
   const [expanded, setExpanded] = useState(null);
 
   // Every past week (everything before the in-progress current week) — no manual archiving needed,
   // the data has lived under its own date key all along.
-  const pastWeeks = allWeekKeys.filter(wk => wk !== meta.currentWeek);
+  const pastWeeks = allWeekKeys.filter(wk => wk !== currentWeek);
 
   if (pastWeeks.length === 0) {
     return (

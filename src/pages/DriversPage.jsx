@@ -34,11 +34,10 @@ function DayDots({ weekData }) {
 }
 
 export default function DriversPage({ board }) {
-  const { drivers, meta, addDriver, renameDriver, updateDriverInfo } = board;
+  const { drivers, meta, currentWeek, addDriver, renameDriver, updateDriverInfo } = board;
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
 
-  const currentWeek = meta.currentWeek;
   const currentLabel = getWeekLabel(currentWeek, meta.startDate);
   const maxCur = Math.max(...drivers.map(d => calcWeekStats(d.weeks?.[currentWeek] || {}).gross), 1);
 

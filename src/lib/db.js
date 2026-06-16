@@ -40,10 +40,9 @@ export function buildMetaFromDB(row) {
   if (!row) return null;
   const wa = row.week_a || {};
   return {
-    startDate:   wa.startDate   || FLEET_START_DATE,
-    currentWeek: wa.currentWeek || FLEET_START_DATE,
-    darkMode:    row.dark_mode  ?? false,
-    year:        row.year       || 2026,
+    startDate: wa.startDate  || FLEET_START_DATE,
+    darkMode:  row.dark_mode ?? false,
+    year:      row.year      || 2026,
   };
 }
 
@@ -104,7 +103,7 @@ export async function dbSaveMeta(meta) {
   await sb.from('ub_meta').upsert({
     id: 1,
     year: meta.year || 2026,
-    week_a: { currentWeek: meta.currentWeek, startDate: meta.startDate },
+    week_a: { startDate: meta.startDate },
     week_b: {},
     dark_mode: meta.darkMode,
     updated_at: new Date().toISOString(),

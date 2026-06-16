@@ -10,29 +10,29 @@ const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDig
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function BoardPage({ board }) {
-  const { drivers, meta, updateDay, addDriver, removeDriver, renameDriver, allWeekKeys, updateMeta } = board;
-  const [viewWeek, setViewWeek] = useState(meta.currentWeek || '2026-06-22');
+  const { drivers, meta, currentWeek, updateDay, addDriver, removeDriver, renameDriver, allWeekKeys, updateMeta } = board;
+  const [viewWeek, setViewWeek] = useState(currentWeek);
   const [newName, setNewName] = useState('');
 
   // One-time sanity check: if viewWeek somehow isn't a valid date key, snap to currentWeek.
   useEffect(() => {
-    if (!ISO_DATE.test(viewWeek)) setViewWeek(meta.currentWeek);
+    if (!ISO_DATE.test(viewWeek)) setViewWeek(currentWeek);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // If the real "current week" advances while this tab is looking at it live,
   // follow along. But if someone has manually browsed elsewhere (history or a
   // peeked-ahead future week), leave them right where they are.
-  const prevCurrentWeek = useRef(meta.currentWeek);
+  const prevCurrentWeek = useRef(currentWeek);
   useEffect(() => {
-    if (viewWeek === prevCurrentWeek.current && meta.currentWeek !== prevCurrentWeek.current) {
-      setViewWeek(meta.currentWeek);
+    if (viewWeek === prevCurrentWeek.current && currentWeek !== prevCurrentWeek.current) {
+      setViewWeek(currentWeek);
     }
-    prevCurrentWeek.current = meta.currentWeek;
-  }, [meta.currentWeek]); // eslint-disable-line react-hooks/exhaustive-deps
+    prevCurrentWeek.current = currentWeek;
+  }, [currentWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const weekIdx     = allWeekKeys.indexOf(viewWeek);
   const canPrev     = viewWeek > meta.startDate;
-  const isCurrentWk = viewWeek === meta.currentWeek;
+  const isCurrentWk = viewWeek === currentWeek;
   const weekDates   = getWeekDates(viewWeek);
   const weekLabel   = getWeekLabel(viewWeek, meta.startDate);
 

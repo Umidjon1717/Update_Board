@@ -125,12 +125,14 @@ export function migrateDrivers(drivers = []) {
   });
 }
 
+// Note: currentWeek is intentionally NOT part of meta — it's derived fresh
+// from the real calendar date every time (see getRealCurrentWeekKey), never
+// stored. Storing it let stale/incorrect values survive across reloads.
 export function migrateMeta(meta = {}) {
   return {
-    startDate:   meta.startDate   || FLEET_START_DATE,
-    currentWeek: meta.currentWeek || FLEET_START_DATE,
-    darkMode:    meta.darkMode    ?? false,
-    year:        meta.year        || 2026,
+    startDate: meta.startDate || FLEET_START_DATE,
+    darkMode:  meta.darkMode  ?? false,
+    year:      meta.year      || 2026,
   };
 }
 

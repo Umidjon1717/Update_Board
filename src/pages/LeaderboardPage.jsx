@@ -8,8 +8,8 @@ const MEDALS       = ['🥇', '🥈', '🥉'];
 const MEDAL_COLORS = ['#f59e0b', '#94a3b8', '#cd7f32'];
 
 export default function LeaderboardPage({ board }) {
-  const { drivers, meta, allWeekKeys } = board;
-  const [viewWeek, setViewWeek] = useState(meta.currentWeek);
+  const { drivers, meta, allWeekKeys, currentWeek } = board;
+  const [viewWeek, setViewWeek] = useState(currentWeek);
 
   const ranked = drivers
     .map(d => ({ ...d, ...calcWeekStats(d.weeks?.[viewWeek] || {}) }))

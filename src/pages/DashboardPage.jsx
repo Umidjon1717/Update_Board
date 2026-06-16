@@ -21,10 +21,10 @@ function Tip({ active, payload, label }) {
 }
 
 export default function DashboardPage({ board }) {
-  const { drivers, meta, allWeekKeys } = board;
+  const { drivers, meta, allWeekKeys, currentWeek } = board;
 
   // Default to current week; allow switching to any known week
-  const [viewWeek, setViewWeek] = useState(meta.currentWeek);
+  const [viewWeek, setViewWeek] = useState(currentWeek);
 
   // Previous week (for comparison)
   const viewIdx  = allWeekKeys.indexOf(viewWeek);
