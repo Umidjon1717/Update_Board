@@ -498,6 +498,9 @@ input { font-family: inherit; }
   transition: border 0.12s;
 }
 .pop-input:focus { border-color: var(--primary); }
+.pop-input::-webkit-inner-spin-button,
+.pop-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.pop-input[type="number"] { -moz-appearance: textfield; }
 
 .pop-calc {
   display: flex;
