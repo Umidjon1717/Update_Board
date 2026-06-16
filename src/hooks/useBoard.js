@@ -1,8 +1,12 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   DEFAULT_DRIVERS, blankDay, blankWeek, blankDispatch,
-  migrateDrivers, migrateMeta, DAYS,
+  migrateDrivers, migrateMeta, getRealCurrentWeekKey, DAYS,
 } from '../data/initialData';
+
+function logFail(action) {
+  return err => console.error(`[UpdateBoard] ${action} failed:`, err);
+}
 import { initSupabase, isConfigured, setCredentials, clearCredentials } from '../lib/supabase';
 import { dbLoad, dbSaveDay, dbSaveDispatch, dbSaveDriverInfo, dbDeleteDriver, dbSaveMeta, dbPushAll, dbSubscribe } from '../lib/db';
 
@@ -46,7 +50,7 @@ export function useBoard() {
         setDrivers(d);
         setMeta(m);
         lsSave(d, m);
-      }).catch(() => {});
+      }).catch(logFail('realtime reload'));
     });
   }
 
@@ -69,14 +73,34 @@ export function useBoard() {
       setDbStatus('connected');
       if (hadOldKeys) {
         // Re-push migrated data to fix the DB week keys
-        dbPushAll(d, m).catch(() => {});
+        dbPushAll(d, m).catch(logFail('week-key migration push'));
       }
       startSubscription();
-    }).catch(() => setDbStatus('error'));
+    }).catch(err => { console.error('[UpdateBoard] initial Supabase load failed:', err); setDbStatus('error'); });
     return () => { if (unsubRef.current) unsubRef.current(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function markSave() { lastSaveTs.current = Date.now(); }
+
+  // ── Auto-advance to the real current week (US Eastern Time) ───────
+  // No one has to click "next week" for the board to be on the right week —
+  // the moment a new calendar week actually starts, this catches it up.
+  // Only ever moves forward; never reverts manual navigation into the future.
+  const driversRef = useRef(drivers);
+  useEffect(() => { driversRef.current = drivers; }, [drivers]);
+  useEffect(() => {
+    const real = getRealCurrentWeekKey(meta.startDate);
+    if (real > meta.currentWeek) {
+      setMeta(prev => {
+        if (real <= prev.currentWeek) return prev;
+        const next = { ...prev, currentWeek: real };
+        lsSave(driversRef.current, next);
+        markSave();
+        dbSaveMeta(next).catch(logFail('auto week-advance sync'));
+        return next;
+      });
+    }
+  }, [meta.startDate, meta.currentWeek]);
 
   // All week keys that have data (plus currentWeek)
   const allWeekKeys = useMemo(() => {
@@ -101,7 +125,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const cell = next.find(d => d.id === driverId)?.weeks?.[weekKey]?.[day];
-      if (cell) dbSaveDay(driverId, weekKey, day, cell).then(markSave).catch(() => {});
+      if (cell) dbSaveDay(driverId, weekKey, day, cell).then(markSave).catch(logFail('save day'));
       return next;
     });
   }, [meta]);
@@ -115,7 +139,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const d = next.find(d => d.id === driverId);
-      if (d) dbSaveDispatch(driverId, d.dispatch).then(markSave).catch(() => {});
+      if (d) dbSaveDispatch(driverId, d.dispatch).then(markSave).catch(logFail('save dispatch'));
       return next;
     });
   }, [meta]);
@@ -132,7 +156,7 @@ export function useBoard() {
       const next = [...prev, newDriver];
       lsSave(next, meta);
       markSave();
-      dbSaveDriverInfo(newDriver).then(markSave).catch(() => {});
+      dbSaveDriverInfo(newDriver).then(markSave).catch(logFail('add driver'));
       return next;
     });
   }, [meta]);
@@ -143,7 +167,7 @@ export function useBoard() {
       const next = prev.filter(d => d.id !== id);
       lsSave(next, meta);
       markSave();
-      dbDeleteDriver(id).then(markSave).catch(() => {});
+      dbDeleteDriver(id).then(markSave).catch(logFail('remove driver'));
       return next;
     });
   }, [meta]);
@@ -155,7 +179,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const d = next.find(d => d.id === id);
-      if (d) dbSaveDriverInfo(d).then(markSave).catch(() => {});
+      if (d) dbSaveDriverInfo(d).then(markSave).catch(logFail('rename driver'));
       return next;
     });
   }, [meta]);
@@ -167,7 +191,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const d = next.find(d => d.id === id);
-      if (d) dbSaveDriverInfo(d).then(markSave).catch(() => {});
+      if (d) dbSaveDriverInfo(d).then(markSave).catch(logFail('update driver info'));
       return next;
     });
   }, [meta]);
@@ -178,7 +202,7 @@ export function useBoard() {
       const next = { ...prev, ...patch };
       lsSave(drivers, next);
       markSave();
-      dbSaveMeta(next).catch(() => {});
+      dbSaveMeta(next).catch(logFail('update meta'));
       return next;
     });
   }, [drivers]);
@@ -187,7 +211,7 @@ export function useBoard() {
     setMeta(prev => {
       const next = { ...prev, darkMode: !prev.darkMode };
       lsSave(drivers, next);
-      dbSaveMeta(next).catch(() => {});
+      dbSaveMeta(next).catch(logFail('toggle dark mode'));
       return next;
     });
   }, [drivers]);
@@ -201,7 +225,7 @@ export function useBoard() {
       const next = { ...prev, currentWeek: weekKey };
       lsSave(drivers, next);
       markSave();
-      dbSaveMeta(next).catch(() => {});
+      dbSaveMeta(next).catch(logFail('go to week'));
       return next;
     });
   }, [drivers]);

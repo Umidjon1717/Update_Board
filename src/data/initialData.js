@@ -46,6 +46,35 @@ export function getWeekLabel(mondayDate, startDate = FLEET_START_DATE) {
   return `Week ${getWeekNumber(mondayDate, startDate)} · ${getWeekDateRange(mondayDate)}`;
 }
 
+// ── Real-world "what week is it" detection (US Eastern Time) ──────
+// Resolves "today" in US Eastern Time regardless of the device's own
+// clock/timezone, so the board always opens on the correct week without
+// anyone having to manually click forward.
+function getUSEasternToday() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const map = {};
+  parts.forEach(p => { map[p.type] = p.value; });
+  return new Date(`${map.year}-${map.month}-${map.day}T00:00:00`);
+}
+
+export function getMondayKey(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sun .. 6 = Sat
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+// The week that should be "current" right now, never earlier than startDate.
+export function getRealCurrentWeekKey(startDate = FLEET_START_DATE) {
+  const real = getMondayKey(getUSEasternToday());
+  return real > startDate ? real : startDate;
+}
+
 // ── Blank data helpers ────────────────────────────────────────────
 export function blankDay() {
   return { status: 'driving', dollars: null, miles: null, pm: null, notes: '' };

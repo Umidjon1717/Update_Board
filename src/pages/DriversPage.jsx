@@ -34,7 +34,7 @@ function DayDots({ weekData }) {
 }
 
 export default function DriversPage({ board }) {
-  const { drivers, meta, allWeekKeys, addDriver, renameDriver, updateDriverInfo } = board;
+  const { drivers, meta, addDriver, renameDriver, updateDriverInfo } = board;
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
 
@@ -68,9 +68,6 @@ export default function DriversPage({ board }) {
           const color  = getAvatarColor(driver.name);
           const streak = calcStreak(driver);
           const pctCur = (stCur.gross / maxCur) * 100;
-
-          // All-time gross from all weeks
-          const allTimeGross = allWeekKeys.reduce((s, wk) => s + calcWeekStats(driver.weeks?.[wk] || {}).gross, 0);
 
           return (
             <div key={driver.id} className="driver-card">
@@ -118,13 +115,6 @@ export default function DriversPage({ board }) {
                   <div className="dc-progress" style={{ width: `${pctCur}%`, background: color }} />
                 </div>
                 <DayDots weekData={driver.weeks?.[currentWeek]} />
-
-                {allWeekKeys.length > 1 && (
-                  <div className="dc-total-row">
-                    <div className="dc-total-label">All-Time Gross ({allWeekKeys.length} week{allWeekKeys.length !== 1 ? 's' : ''})</div>
-                    <div className="dc-total-val">{fmt$(allTimeGross)}</div>
-                  </div>
-                )}
               </div>
             </div>
           );
