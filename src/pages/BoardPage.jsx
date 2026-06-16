@@ -1,27 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DayCell from '../components/DayCell';
 import {
   calcWeekStats, calcStreak, getInitials, getAvatarColor,
-  getWeekDates, getWeekLabel, getNextWeekKey, blankDay, DAYS,
+  getWeekDates, getWeekLabel, getNextWeekKey, getPrevWeekKey, blankDay, DAYS,
 } from '../data/initialData';
 import { exportWeekCSV } from '../utils/export';
 
 const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function BoardPage({ board }) {
-  const { drivers, meta, updateDay, addDriver, removeDriver, renameDriver, allWeekKeys, updateMeta, goToWeek } = board;
+  const { drivers, meta, updateDay, addDriver, removeDriver, renameDriver, allWeekKeys, updateMeta } = board;
   const [viewWeek, setViewWeek] = useState(meta.currentWeek || '2026-06-22');
   const [newName, setNewName] = useState('');
 
-  // If allWeekKeys changes (e.g. Supabase migration runs) and viewWeek is no longer valid, snap to currentWeek
+  // One-time sanity check: if viewWeek somehow isn't a valid date key, snap to currentWeek.
   useEffect(() => {
-    if (!allWeekKeys.includes(viewWeek)) {
+    if (!ISO_DATE.test(viewWeek)) setViewWeek(meta.currentWeek);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If the real "current week" advances while this tab is looking at it live,
+  // follow along. But if someone has manually browsed elsewhere (history or a
+  // peeked-ahead future week), leave them right where they are.
+  const prevCurrentWeek = useRef(meta.currentWeek);
+  useEffect(() => {
+    if (viewWeek === prevCurrentWeek.current && meta.currentWeek !== prevCurrentWeek.current) {
       setViewWeek(meta.currentWeek);
     }
-  }, [allWeekKeys]); // eslint-disable-line react-hooks/exhaustive-deps
+    prevCurrentWeek.current = meta.currentWeek;
+  }, [meta.currentWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const weekIdx     = allWeekKeys.indexOf(viewWeek);
-  const canPrev     = weekIdx > 0;
+  const canPrev     = viewWeek > meta.startDate;
   const isCurrentWk = viewWeek === meta.currentWeek;
   const weekDates   = getWeekDates(viewWeek);
   const weekLabel   = getWeekLabel(viewWeek, meta.startDate);
@@ -37,16 +47,15 @@ export default function BoardPage({ board }) {
     if (newName.trim()) { addDriver(newName.trim()); setNewName(''); }
   }
 
-  function goPrev() { if (canPrev) setViewWeek(allWeekKeys[weekIdx - 1]); }
+  // Browsing to a different week (even into the future to pre-plan, or back
+  // into an empty past week) is purely local — it never redefines what
+  // "Current" means for the rest of the app. Only the real calendar date does.
+  function goPrev() {
+    if (!canPrev) return;
+    setViewWeek(weekIdx > 0 ? allWeekKeys[weekIdx - 1] : getPrevWeekKey(viewWeek));
+  }
   function goNext() {
-    // Guard against weekIdx === -1 (viewWeek momentarily out of sync with
-    // allWeekKeys) — fall through to computing the next week directly rather
-    // than letting `-1 + 1 = 0` wrap around to the earliest known week.
-    if (weekIdx !== -1 && weekIdx < allWeekKeys.length - 1) { setViewWeek(allWeekKeys[weekIdx + 1]); return; }
-    // Past the known frontier — open (and remember) the next week, no extra step needed
-    const next = getNextWeekKey(viewWeek);
-    goToWeek(next);
-    setViewWeek(next);
+    setViewWeek(weekIdx !== -1 && weekIdx < allWeekKeys.length - 1 ? allWeekKeys[weekIdx + 1] : getNextWeekKey(viewWeek));
   }
 
   return (

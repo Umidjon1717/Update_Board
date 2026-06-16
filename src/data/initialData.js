@@ -17,6 +17,12 @@ export function getNextWeekKey(mondayDate) {
   return d.toISOString().split('T')[0];
 }
 
+export function getPrevWeekKey(mondayDate) {
+  const d = new Date(mondayDate + 'T00:00:00');
+  d.setDate(d.getDate() - 7);
+  return d.toISOString().split('T')[0];
+}
+
 export function getWeekNumber(mondayDate, startDate = FLEET_START_DATE) {
   const start = new Date(startDate + 'T00:00:00');
   const cur   = new Date(mondayDate + 'T00:00:00');

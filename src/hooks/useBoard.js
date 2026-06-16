@@ -124,10 +124,12 @@ export function useBoard() {
     }
   }, [meta.startDate, meta.currentWeek]);
 
-  // Every week from the fleet's start through currentWeek — a contiguous
-  // range, not just the ones someone happened to enter data for. That way
-  // "<-"/"->" always move exactly one week and a manager can always browse
-  // back to an empty past week to fill in something they missed.
+  // Every week from the fleet's start through currentWeek (the real, calendar-
+  // driven "this week" — see the auto-advance effect above), plus any week
+  // beyond that someone has actually started entering data for (pre-planning
+  // a future week). This is a contiguous range, not just weeks that happen to
+  // have data, so "<-"/"->" always move exactly one week and a manager can
+  // always browse back to an empty past week to fill in something missed.
   const allWeekKeys = useMemo(() => {
     const keys = [];
     let cursor = meta.startDate;
@@ -137,7 +139,8 @@ export function useBoard() {
       cursor = getNextWeekKey(cursor);
       guard++;
     }
-    // Defensive: fold in any week that has real data but landed outside that range
+    // Fold in any week with real data that falls outside that range (future
+    // weeks someone started filling in ahead of time, or legacy data).
     drivers.forEach(d => Object.keys(d.weeks || {}).forEach(k => {
       if (!keys.includes(k)) keys.push(k);
     }));
@@ -250,20 +253,6 @@ export function useBoard() {
     });
   }, [drivers]);
 
-  // ── goToWeek: navigate to (and, if new, create) any week ──────────
-  // Weeks need no explicit "close" step — every week's data lives under its
-  // own date key permanently, so moving forward just extends currentWeek.
-  const goToWeek = useCallback((weekKey) => {
-    setMeta(prev => {
-      if (weekKey <= prev.currentWeek) return prev; // not a new frontier — no meta change needed
-      const next = { ...prev, currentWeek: weekKey };
-      lsSave(drivers, next);
-      markSave();
-      dbSaveMeta(next).catch(logFail('go to week'));
-      return next;
-    });
-  }, [drivers]);
-
   // ── connectDB ─────────────────────────────────────────────────────
   const connectDB = useCallback(async (url, key) => {
     setCredentials(url, key);
@@ -304,7 +293,7 @@ export function useBoard() {
     drivers, meta, dbStatus, allWeekKeys,
     updateDay, updateDispatch,
     addDriver, removeDriver, renameDriver, updateDriverInfo,
-    updateMeta, toggleDarkMode, goToWeek,
+    updateMeta, toggleDarkMode,
     DAYS,
     connectDB, disconnectDB,
   };
