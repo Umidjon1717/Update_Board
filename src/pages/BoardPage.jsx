@@ -39,7 +39,10 @@ export default function BoardPage({ board }) {
 
   function goPrev() { if (canPrev) setViewWeek(allWeekKeys[weekIdx - 1]); }
   function goNext() {
-    if (weekIdx < allWeekKeys.length - 1) { setViewWeek(allWeekKeys[weekIdx + 1]); return; }
+    // Guard against weekIdx === -1 (viewWeek momentarily out of sync with
+    // allWeekKeys) — fall through to computing the next week directly rather
+    // than letting `-1 + 1 = 0` wrap around to the earliest known week.
+    if (weekIdx !== -1 && weekIdx < allWeekKeys.length - 1) { setViewWeek(allWeekKeys[weekIdx + 1]); return; }
     // Past the known frontier — open (and remember) the next week, no extra step needed
     const next = getNextWeekKey(viewWeek);
     goToWeek(next);

@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   DEFAULT_DRIVERS, blankDay, blankWeek, blankDispatch,
-  migrateDrivers, migrateMeta, getRealCurrentWeekKey, DAYS,
+  migrateDrivers, migrateMeta, getRealCurrentWeekKey, getNextWeekKey, DAYS,
 } from '../data/initialData';
+import { initSupabase, isConfigured, setCredentials, clearCredentials } from '../lib/supabase';
+import { dbLoad, dbSaveDay, dbSaveDispatch, dbSaveDriverInfo, dbDeleteDriver, dbSaveMeta, dbPushAll, dbSubscribe } from '../lib/db';
 
 function logFail(action) {
   return err => console.error(`[UpdateBoard] ${action} failed:`, err);
 }
-import { initSupabase, isConfigured, setCredentials, clearCredentials } from '../lib/supabase';
-import { dbLoad, dbSaveDay, dbSaveDispatch, dbSaveDriverInfo, dbDeleteDriver, dbSaveMeta, dbPushAll, dbSubscribe } from '../lib/db';
 
 const LS_KEY = 'updateboard_v5';
 
@@ -35,6 +35,28 @@ export function useBoard() {
   const lastSaveTs = useRef(0);
   const unsubRef   = useRef(null);
 
+  // Always-current meta, readable from callbacks/closures that were set up earlier
+  // (e.g. the realtime subscription) without forcing them to be torn down and
+  // recreated on every meta change.
+  const metaRef = useRef(meta);
+  useEffect(() => { metaRef.current = meta; }, [meta]);
+
+  // currentWeek must never regress: a stale or lagging Supabase read should
+  // never be able to snap the board backward to an earlier week than what's
+  // already known locally — that's what made "next week" look like it was
+  // sending people backward.
+  function mergeIncomingMeta(serverMeta) {
+    const localWeek = metaRef.current.currentWeek;
+    if (localWeek && localWeek > serverMeta.currentWeek) {
+      const healed = { ...serverMeta, currentWeek: localWeek };
+      // The DB had a stale (earlier) currentWeek — heal it so other devices
+      // loading fresh don't see the regression either.
+      dbSaveMeta(healed).catch(logFail('heal stale currentWeek'));
+      return healed;
+    }
+    return serverMeta;
+  }
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', !!meta.darkMode);
   }, [meta.darkMode]);
@@ -46,7 +68,7 @@ export function useBoard() {
       dbLoad().then(data => {
         if (!data) return;
         const d = migrateDrivers(data.drivers);
-        const m = migrateMeta(data.meta || {});
+        const m = mergeIncomingMeta(migrateMeta(data.meta || {}));
         setDrivers(d);
         setMeta(m);
         lsSave(d, m);
@@ -66,7 +88,7 @@ export function useBoard() {
         Object.keys(dr.weeks || {}).some(k => k === 'weekA' || k === 'weekB')
       );
       const d = migrateDrivers(rawDrivers);
-      const m = migrateMeta(data.meta || {});
+      const m = mergeIncomingMeta(migrateMeta(data.meta || {}));
       setDrivers(d);
       setMeta(m);
       lsSave(d, m);
@@ -102,13 +124,25 @@ export function useBoard() {
     }
   }, [meta.startDate, meta.currentWeek]);
 
-  // All week keys that have data (plus currentWeek)
+  // Every week from the fleet's start through currentWeek — a contiguous
+  // range, not just the ones someone happened to enter data for. That way
+  // "<-"/"->" always move exactly one week and a manager can always browse
+  // back to an empty past week to fill in something they missed.
   const allWeekKeys = useMemo(() => {
-    const set = new Set();
-    drivers.forEach(d => Object.keys(d.weeks || {}).forEach(k => set.add(k)));
-    set.add(meta.currentWeek);
-    return [...set].sort();
-  }, [drivers, meta.currentWeek]);
+    const keys = [];
+    let cursor = meta.startDate;
+    let guard = 0;
+    while (cursor <= meta.currentWeek && guard < 1000) {
+      keys.push(cursor);
+      cursor = getNextWeekKey(cursor);
+      guard++;
+    }
+    // Defensive: fold in any week that has real data but landed outside that range
+    drivers.forEach(d => Object.keys(d.weeks || {}).forEach(k => {
+      if (!keys.includes(k)) keys.push(k);
+    }));
+    return keys.sort();
+  }, [drivers, meta.startDate, meta.currentWeek]);
 
   // ── updateDay ─────────────────────────────────────────────────────
   const updateDay = useCallback((driverId, weekKey, day, patch) => {
@@ -245,7 +279,7 @@ export function useBoard() {
         return { success: true, action: 'pushed' };
       } else {
         const d = migrateDrivers(data.drivers);
-        const m = migrateMeta(data.meta || {});
+        const m = mergeIncomingMeta(migrateMeta(data.meta || {}));
         setDrivers(d);
         setMeta(m);
         lsSave(d, m);
