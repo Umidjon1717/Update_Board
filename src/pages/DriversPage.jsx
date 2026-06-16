@@ -34,7 +34,7 @@ function DayDots({ weekData }) {
 }
 
 export default function DriversPage({ board }) {
-  const { drivers, meta, allWeekKeys, addDriver, removeDriver, renameDriver, updateDriverInfo } = board;
+  const { drivers, meta, allWeekKeys, addDriver, renameDriver, updateDriverInfo } = board;
   const [search, setSearch] = useState('');
   const [newName, setNewName] = useState('');
 
@@ -80,7 +80,6 @@ export default function DriversPage({ board }) {
                   {driver.truck && <span className="dc-truck">#{driver.truck}</span>}
                   {streak > 0 && <span className="dc-streak">🔥 {streak}d streak</span>}
                 </div>
-                <button className="dc-rm" onClick={() => { if (confirm(`Remove ${driver.name}?`)) removeDriver(driver.id); }}>✕</button>
               </div>
               <div className="dc-body">
                 <div className="dc-name" onClick={() => { const n = prompt('Rename:', driver.name); if (n?.trim()) renameDriver(driver.id, n.trim()); }}>

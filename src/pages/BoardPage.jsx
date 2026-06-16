@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import DayCell from '../components/DayCell';
 import {
   calcWeekStats, calcStreak, getInitials, getAvatarColor,
-  getWeekDates, getWeekLabel, getWeekNumber, getNextWeekKey, blankDay, DAYS,
+  getWeekDates, getWeekLabel, getNextWeekKey, blankDay, DAYS,
 } from '../data/initialData';
 import { exportWeekCSV } from '../utils/export';
 
 const fmt$ = n => n ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
 export default function BoardPage({ board }) {
-  const { drivers, meta, updateDay, addDriver, removeDriver, renameDriver, closeWeek, allWeekKeys, updateMeta } = board;
+  const { drivers, meta, updateDay, addDriver, removeDriver, renameDriver, allWeekKeys, updateMeta, goToWeek } = board;
   const [viewWeek, setViewWeek] = useState(meta.currentWeek || '2026-06-22');
   const [newName, setNewName] = useState('');
 
@@ -22,7 +22,6 @@ export default function BoardPage({ board }) {
 
   const weekIdx     = allWeekKeys.indexOf(viewWeek);
   const canPrev     = weekIdx > 0;
-  const canNext     = weekIdx < allWeekKeys.length - 1;
   const isCurrentWk = viewWeek === meta.currentWeek;
   const weekDates   = getWeekDates(viewWeek);
   const weekLabel   = getWeekLabel(viewWeek, meta.startDate);
@@ -38,11 +37,13 @@ export default function BoardPage({ board }) {
     if (newName.trim()) { addDriver(newName.trim()); setNewName(''); }
   }
 
-  function handleCloseWeek() {
-    const num = getWeekNumber(viewWeek, meta.startDate);
-    if (!confirm(`Close Week ${num} and start Week ${num + 1}?\n\nThis week's data is preserved in History.`)) return;
-    closeWeek();
-    setViewWeek(getNextWeekKey(viewWeek));
+  function goPrev() { if (canPrev) setViewWeek(allWeekKeys[weekIdx - 1]); }
+  function goNext() {
+    if (weekIdx < allWeekKeys.length - 1) { setViewWeek(allWeekKeys[weekIdx + 1]); return; }
+    // Past the known frontier — open (and remember) the next week, no extra step needed
+    const next = getNextWeekKey(viewWeek);
+    goToWeek(next);
+    setViewWeek(next);
   }
 
   return (
@@ -64,16 +65,16 @@ export default function BoardPage({ board }) {
 
       <div className="controls-row no-print">
         <div className="week-nav">
-          <button className="week-nav-btn" onClick={() => setViewWeek(allWeekKeys[weekIdx - 1])} disabled={!canPrev}>←</button>
-          <div className="week-nav-label">{weekLabel}</div>
-          <button className="week-nav-btn" onClick={() => setViewWeek(allWeekKeys[weekIdx + 1])} disabled={!canNext}>→</button>
+          <button className="week-nav-btn" onClick={goPrev} disabled={!canPrev}>←</button>
+          <div className="week-nav-label">
+            {weekLabel}
+            {isCurrentWk && <span className="week-live-badge">● Current</span>}
+          </div>
+          <button className="week-nav-btn" onClick={goNext}>→</button>
         </div>
         <div className="board-actions">
           <button className="btn-outline" onClick={() => exportWeekCSV(drivers, viewWeek, weekLabel)}>⬇ CSV</button>
           <button className="btn-outline" onClick={() => window.print()}>🖨 Print</button>
-          {isCurrentWk && (
-            <button className="btn-close-week" onClick={handleCloseWeek}>📅 Close Week</button>
-          )}
           <form onSubmit={submit} className="add-form">
             <input className="add-input" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Add driver..." />
             <button type="submit" className="btn-primary">+ Add</button>

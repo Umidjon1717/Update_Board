@@ -45,8 +45,7 @@ export default function DashboardPage({ board }) {
   const grandMiles    = currentStats.reduce((s, d) => s + d.miles, 0);
   const activeDrivers = currentStats.filter(d => d.days > 0).length;
   const topDriver     = [...currentStats].sort((a, b) => b.gross - a.gross)[0];
-  const historyGross  = (meta.history || []).reduce((s, h) => s + (h.gross || 0), 0);
-  const allTimeGross  = historyGross + drivers.reduce((s, d) => {
+  const allTimeGross  = drivers.reduce((s, d) => {
     return s + allWeekKeys.reduce((ws, wk) => ws + calcWeekStats(d.weeks?.[wk] || {}).gross, 0);
   }, 0);
 
@@ -119,18 +118,18 @@ export default function DashboardPage({ board }) {
           <div className="kpi-card-val">{activeDrivers > 0 ? fmt$(grandGross / activeDrivers) : '—'}</div>
           <div className="kpi-card-lbl">Avg per Driver</div>
         </div>
-        {meta.history?.length > 0 && (
+        {allWeekKeys.length > 1 && (
           <div className="kpi-card purple">
             <div className="kpi-card-icon">📅</div>
             <div className="kpi-card-val">{fmt$2(allTimeGross)}</div>
             <div className="kpi-card-lbl">All-Time Gross</div>
           </div>
         )}
-        {meta.history?.length > 0 && (
+        {allWeekKeys.length > 1 && (
           <div className="kpi-card indigo">
             <div className="kpi-card-icon">🗂</div>
-            <div className="kpi-card-val">{meta.history.length}</div>
-            <div className="kpi-card-lbl">Archived Weeks</div>
+            <div className="kpi-card-val">{allWeekKeys.length}</div>
+            <div className="kpi-card-lbl">Weeks Tracked</div>
           </div>
         )}
       </div>

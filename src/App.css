@@ -229,25 +229,26 @@ input { font-family: inherit; }
 .week-nav-btn:disabled { opacity: 0.3; cursor: default; }
 .week-nav-btn:not(:disabled):hover { border-color: var(--primary); color: var(--primary); }
 .week-nav-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
   min-width: 180px;
-  text-align: center;
+  justify-content: center;
   white-space: nowrap;
 }
-.btn-close-week {
-  padding: 8px 14px;
-  background: #f59e0b;
-  color: white;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+.week-live-badge {
+  font-size: 10px;
   font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: background 0.15s;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
 }
-.btn-close-week:hover { background: #d97706; }
+.dark .week-live-badge { background: #14532d; color: #86efac; }
 
 /* Legacy (kept for potential HistoryPage use) */
 .week-tabs { display: flex; gap: 4px; }
@@ -1168,6 +1169,34 @@ input { font-family: inherit; }
 .hist-gross { font-weight: 700; color: #15803d; }
 .hist-miles { color: #1d4ed8; }
 .hist-pm    { color: #b45309; font-weight: 600; }
+
+/* History — KPI strip */
+.hist-kpi-row { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+.hist-kpi {
+  flex: 1; min-width: 160px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 18px;
+}
+.hist-kpi-val { font-size: 22px; font-weight: 800; color: var(--text); }
+.hist-kpi-lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.hist-kpi.gold { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #fde68a; }
+.dark .hist-kpi.gold { background: linear-gradient(135deg, #422006, #451a03); border-color: #92400e; }
+
+/* History — month grouping */
+.hist-month-group { margin-bottom: 28px; }
+.hist-month-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 0 4px 10px; border-bottom: 2px solid var(--border); margin-bottom: 12px;
+}
+.hist-month-name { font-size: 16px; font-weight: 800; color: var(--text); }
+.hist-month-total { font-size: 14px; font-weight: 700; color: #15803d; }
+
+.hist-best { border: 2px solid #fbbf24 !important; }
+.hist-best-badge {
+  font-size: 10px; font-weight: 700; color: #92400e; background: #fef3c7;
+  padding: 2px 8px; border-radius: 20px; margin-left: 8px;
+}
+.dark .hist-best-badge { background: #451a03; color: #fbbf24; }
 
 /* Empty state */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; gap: 12px; }

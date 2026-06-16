@@ -18,11 +18,14 @@ function buildAllWeeks(driverDays) {
 }
 
 export function buildDrivers(rawDrivers, rawDispatch, rawDays) {
+  // Postgres bigint columns are serialized as strings by PostgREST — normalize to Number
+  // so ids compare consistently with locally-generated (numeric) driver ids.
   return rawDrivers.map(d => {
-    const disp  = rawDispatch.find(r => r.driver_id === d.id) || {};
-    const ddays = rawDays.filter(r => r.driver_id === d.id);
+    const id    = Number(d.id);
+    const disp  = rawDispatch.find(r => Number(r.driver_id) === id) || {};
+    const ddays = rawDays.filter(r => Number(r.driver_id) === id);
     return {
-      id:      d.id,
+      id,
       name:    d.name,
       phone:   d.phone   || '',
       truck:   d.truck   || '',
@@ -39,9 +42,7 @@ export function buildMetaFromDB(row) {
   return {
     startDate:   wa.startDate   || FLEET_START_DATE,
     currentWeek: wa.currentWeek || FLEET_START_DATE,
-    threshold:   row.threshold  ?? 2.0,
     darkMode:    row.dark_mode  ?? false,
-    history:     row.history    ?? [],
     year:        row.year       || 2026,
   };
 }
@@ -105,9 +106,7 @@ export async function dbSaveMeta(meta) {
     year: meta.year || 2026,
     week_a: { currentWeek: meta.currentWeek, startDate: meta.startDate },
     week_b: {},
-    threshold: meta.threshold,
     dark_mode: meta.darkMode,
-    history:   meta.history,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' });
 }

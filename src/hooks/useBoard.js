@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   DEFAULT_DRIVERS, blankDay, blankWeek, blankDispatch,
-  calcWeekStats, migrateDrivers, migrateMeta,
-  getNextWeekKey, getWeekLabel, DAYS,
+  migrateDrivers, migrateMeta, DAYS,
 } from '../data/initialData';
 import { initSupabase, isConfigured, setCredentials, clearCredentials } from '../lib/supabase';
 import { dbLoad, dbSaveDay, dbSaveDispatch, dbSaveDriverInfo, dbDeleteDriver, dbSaveMeta, dbPushAll, dbSubscribe } from '../lib/db';
@@ -39,7 +38,7 @@ export function useBoard() {
   function startSubscription() {
     if (unsubRef.current) unsubRef.current();
     unsubRef.current = dbSubscribe(() => {
-      if (Date.now() - lastSaveTs.current < 800) return;
+      if (Date.now() - lastSaveTs.current < 2000) return;
       dbLoad().then(data => {
         if (!data) return;
         const d = migrateDrivers(data.drivers);
@@ -102,7 +101,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const cell = next.find(d => d.id === driverId)?.weeks?.[weekKey]?.[day];
-      if (cell) dbSaveDay(driverId, weekKey, day, cell).catch(() => {});
+      if (cell) dbSaveDay(driverId, weekKey, day, cell).then(markSave).catch(() => {});
       return next;
     });
   }, [meta]);
@@ -116,7 +115,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const d = next.find(d => d.id === driverId);
-      if (d) dbSaveDispatch(driverId, d.dispatch).catch(() => {});
+      if (d) dbSaveDispatch(driverId, d.dispatch).then(markSave).catch(() => {});
       return next;
     });
   }, [meta]);
@@ -124,7 +123,7 @@ export function useBoard() {
   // ── addDriver ─────────────────────────────────────────────────────
   const addDriver = useCallback((name) => {
     setDrivers(prev => {
-      const id = Math.max(0, ...prev.map(d => d.id)) + 1;
+      const id = Math.max(0, ...prev.map(d => Number(d.id) || 0)) + 1;
       const newDriver = {
         id, name: name.toUpperCase(), phone: '', truck: '', trailer: '',
         dispatch: blankDispatch(),
@@ -133,7 +132,7 @@ export function useBoard() {
       const next = [...prev, newDriver];
       lsSave(next, meta);
       markSave();
-      dbSaveDriverInfo(newDriver).catch(() => {});
+      dbSaveDriverInfo(newDriver).then(markSave).catch(() => {});
       return next;
     });
   }, [meta]);
@@ -144,7 +143,7 @@ export function useBoard() {
       const next = prev.filter(d => d.id !== id);
       lsSave(next, meta);
       markSave();
-      dbDeleteDriver(id).catch(() => {});
+      dbDeleteDriver(id).then(markSave).catch(() => {});
       return next;
     });
   }, [meta]);
@@ -156,7 +155,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const d = next.find(d => d.id === id);
-      if (d) dbSaveDriverInfo(d).catch(() => {});
+      if (d) dbSaveDriverInfo(d).then(markSave).catch(() => {});
       return next;
     });
   }, [meta]);
@@ -168,7 +167,7 @@ export function useBoard() {
       lsSave(next, meta);
       markSave();
       const d = next.find(d => d.id === id);
-      if (d) dbSaveDriverInfo(d).catch(() => {});
+      if (d) dbSaveDriverInfo(d).then(markSave).catch(() => {});
       return next;
     });
   }, [meta]);
@@ -193,52 +192,13 @@ export function useBoard() {
     });
   }, [drivers]);
 
-  // ── closeWeek: archive current week and advance to next ───────────
-  const closeWeek = useCallback(() => {
-    const weekKey = meta.currentWeek;
-    const entry = {
-      id: Date.now(),
-      label: getWeekLabel(weekKey, meta.startDate),
-      weekKey,
-      year: meta.year,
-      savedAt: new Date().toISOString(),
-      gross: drivers.reduce((s, d) => s + calcWeekStats(d.weeks?.[weekKey] || {}).gross, 0),
-      miles: drivers.reduce((s, d) => s + calcWeekStats(d.weeks?.[weekKey] || {}).miles, 0),
-      drivers: drivers.map(d => {
-        const st = calcWeekStats(d.weeks?.[weekKey] || {});
-        return {
-          id: d.id, name: d.name, truck: d.truck,
-          week: JSON.parse(JSON.stringify(d.weeks?.[weekKey] || {})),
-          stats: { gross: st.gross, miles: st.miles, days: st.days, pm: st.pm },
-        };
-      }),
-    };
-    const nextMeta = { ...meta, currentWeek: getNextWeekKey(weekKey), history: [entry, ...meta.history] };
-    setMeta(nextMeta);
-    lsSave(drivers, nextMeta);
-    markSave();
-    dbSaveMeta(nextMeta).catch(() => {});
-  }, [drivers, meta]);
-
-  // ── reopenWeek: undo a close-week (remove history entry, restore currentWeek) ──
-  const reopenWeek = useCallback((historyId) => {
-    const entry = meta.history.find(h => h.id === historyId);
-    if (!entry) return;
-    const nextMeta = {
-      ...meta,
-      currentWeek: entry.weekKey,
-      history: meta.history.filter(h => h.id !== historyId),
-    };
-    setMeta(nextMeta);
-    lsSave(drivers, nextMeta);
-    markSave();
-    dbSaveMeta(nextMeta).catch(() => {});
-  }, [drivers, meta]);
-
-  // ── deleteHistory ─────────────────────────────────────────────────
-  const deleteHistory = useCallback((id) => {
+  // ── goToWeek: navigate to (and, if new, create) any week ──────────
+  // Weeks need no explicit "close" step — every week's data lives under its
+  // own date key permanently, so moving forward just extends currentWeek.
+  const goToWeek = useCallback((weekKey) => {
     setMeta(prev => {
-      const next = { ...prev, history: prev.history.filter(h => h.id !== id) };
+      if (weekKey <= prev.currentWeek) return prev; // not a new frontier — no meta change needed
+      const next = { ...prev, currentWeek: weekKey };
       lsSave(drivers, next);
       markSave();
       dbSaveMeta(next).catch(() => {});
@@ -286,8 +246,7 @@ export function useBoard() {
     drivers, meta, dbStatus, allWeekKeys,
     updateDay, updateDispatch,
     addDriver, removeDriver, renameDriver, updateDriverInfo,
-    updateMeta, toggleDarkMode,
-    closeWeek, reopenWeek, deleteHistory,
+    updateMeta, toggleDarkMode, goToWeek,
     DAYS,
     connectDB, disconnectDB,
   };

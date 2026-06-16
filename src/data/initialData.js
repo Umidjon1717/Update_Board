@@ -94,9 +94,7 @@ export function migrateMeta(meta = {}) {
   return {
     startDate:   meta.startDate   || FLEET_START_DATE,
     currentWeek: meta.currentWeek || FLEET_START_DATE,
-    threshold:   meta.threshold   ?? 2.00,
     darkMode:    meta.darkMode    ?? false,
-    history:     meta.history     ?? [],
     year:        meta.year        || 2026,
   };
 }
@@ -133,6 +131,28 @@ export function getDailyTotals(drivers, weekKey) {
       return s + (c?.status === 'driving' && c.dollars ? c.dollars : 0);
     }, 0),
   }));
+}
+
+// Live summary of a single week across the whole fleet — used by Dashboard & History
+export function getWeekSummary(drivers, weekKey, startDate = FLEET_START_DATE) {
+  let gross = 0, miles = 0, activeDrivers = 0;
+  let topDriver = null, topGross = 0;
+  drivers.forEach(d => {
+    const st = calcWeekStats(d.weeks?.[weekKey] || {});
+    gross += st.gross;
+    miles += st.miles;
+    if (st.days > 0) activeDrivers++;
+    if (st.gross > topGross) { topGross = st.gross; topDriver = d.name; }
+  });
+  return {
+    weekKey,
+    label: getWeekLabel(weekKey, startDate),
+    range: getWeekDateRange(weekKey),
+    gross, miles,
+    pm: miles > 0 ? gross / miles : null,
+    activeDrivers,
+    topDriver, topGross,
+  };
 }
 
 export function calcStreak(driver) {
