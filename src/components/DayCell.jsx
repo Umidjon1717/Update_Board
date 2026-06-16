@@ -8,7 +8,12 @@ export default function DayCell({ data, onUpdate }) {
   const [draft, setDraft] = useState(null);
   const ref = useRef(null);
 
-  useEffect(() => { if (open) setDraft({ ...data }); }, [open, data]);
+  // Only (re)seed the draft when the popover actually opens — NOT on every
+  // change to `data`. For an empty cell, the parent passes a brand-new
+  // blankDay() object on every render, so depending on `data` here meant any
+  // unrelated re-render (e.g. a Supabase realtime sync from another tab/
+  // device) would silently reset whatever the user was mid-typing.
+  useEffect(() => { if (open) setDraft({ ...data }); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
