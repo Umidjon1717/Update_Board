@@ -934,7 +934,6 @@ input { font-family: inherit; }
 .cell-note-dot { position: absolute; top: 3px; right: 3px; font-size: 6px; color: var(--amber); }
 
 /* PM field in popover */
-.pop-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pm-tag { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; margin-left: 4px; }
 .pm-tag.manual { background: #fef3c7; color: #b45309; }
 .pm-tag.auto   { background: #f0fdf4; color: #15803d; }

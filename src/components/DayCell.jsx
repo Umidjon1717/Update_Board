@@ -87,31 +87,29 @@ export default function DayCell({ data, onUpdate }) {
 
             {draft.status === 'driving' && (
               <div className="pop-fields">
-                <div className="pop-row-2">
-                  <div className="pop-field">
-                    <label className="pop-label">Gross ($)</label>
-                    <input
-                      className="pop-input"
-                      type="number"
-                      value={draft.dollars ?? ''}
-                      onChange={e => setGross(e.target.value)}
-                      placeholder="0"
-                      autoFocus
-                      onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
-                    />
-                  </div>
-                  <div className="pop-field">
-                    <label className="pop-label">$/mi Rate</label>
-                    <input
-                      className="pop-input"
-                      type="number"
-                      step="0.01"
-                      value={draft.pm ?? ''}
-                      onChange={e => setPm(e.target.value)}
-                      placeholder="e.g. 2.50"
-                      onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
-                    />
-                  </div>
+                <div className="pop-field">
+                  <label className="pop-label">Gross ($)</label>
+                  <input
+                    className="pop-input"
+                    type="number"
+                    value={draft.dollars ?? ''}
+                    onChange={e => setGross(e.target.value)}
+                    placeholder="0"
+                    autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
+                  />
+                </div>
+                <div className="pop-field">
+                  <label className="pop-label">$/mi Rate</label>
+                  <input
+                    className="pop-input"
+                    type="number"
+                    step="0.01"
+                    value={draft.pm ?? ''}
+                    onChange={e => setPm(e.target.value)}
+                    placeholder="e.g. 2.50"
+                    onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setOpen(false); }}
+                  />
                 </div>
 
                 {draft.dollars && draft.pm && draft.pm > 0 && (
