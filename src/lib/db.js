@@ -65,40 +65,44 @@ export async function dbLoad() {
 // ── Individual save operations ───────────────────────────────────
 export async function dbSaveDay(driverId, week, day, data) {
   const sb = getClient(); if (!sb) return;
-  await sb.from('ub_week_days').upsert({
+  const { error } = await sb.from('ub_week_days').upsert({
     driver_id: driverId, week, day,
     status: data.status, dollars: data.dollars, miles: data.miles, pm: data.pm, notes: data.notes || '',
     updated_at: new Date().toISOString(),
   }, { onConflict: 'driver_id,week,day' });
+  if (error) throw error;
 }
 
 export async function dbSaveDispatch(driverId, dispatch) {
   const sb = getClient(); if (!sb) return;
-  await sb.from('ub_dispatch').upsert({
+  const { error } = await sb.from('ub_dispatch').upsert({
     driver_id: driverId,
     status: dispatch.status || '', pu: dispatch.pu || '', del_info: dispatch.del || '',
     load_id: dispatch.loadId || '', notes: dispatch.notes || '',
     updated_at: new Date().toISOString(),
   }, { onConflict: 'driver_id' });
+  if (error) throw error;
 }
 
 export async function dbSaveDriverInfo(driver) {
   const sb = getClient(); if (!sb) return;
-  await sb.from('ub_drivers').upsert({
+  const { error } = await sb.from('ub_drivers').upsert({
     id: driver.id, name: driver.name,
     phone: driver.phone || '', truck: driver.truck || '', trailer: driver.trailer || '',
   }, { onConflict: 'id' });
+  if (error) throw error;
   if (driver.dispatch) await dbSaveDispatch(driver.id, driver.dispatch);
 }
 
 export async function dbDeleteDriver(id) {
   const sb = getClient(); if (!sb) return;
-  await sb.from('ub_drivers').delete().eq('id', id);
+  const { error } = await sb.from('ub_drivers').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function dbSaveMeta(meta) {
   const sb = getClient(); if (!sb) return;
-  await sb.from('ub_meta').upsert({
+  const { error } = await sb.from('ub_meta').upsert({
     id: 1,
     year: meta.year || 2026,
     week_a: {},
@@ -106,6 +110,7 @@ export async function dbSaveMeta(meta) {
     dark_mode: meta.darkMode,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' });
+  if (error) throw error;
 }
 
 // ── Bulk push local state to Supabase (first-time migration) ─────

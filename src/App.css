@@ -446,6 +446,11 @@ input { font-family: inherit; }
 .day-cell.status-TRANSIT:hover { background: #c7d9f9; }
 .day-cell.empty { background: #fafafa; }
 .day-cell.empty:hover { background: #f0fdf4; }
+.day-cell.cell-flash { animation: cell-saved 1.2s ease-out forwards; }
+@keyframes cell-saved {
+  0%   { background: #bbf7d0; }
+  100% { background: transparent; }
+}
 
 .pill {
   font-size: 10px;

@@ -4,8 +4,9 @@ import { getMiles } from '../data/initialData';
 const fmt$ = n => n != null ? `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '';
 
 export default function DayCell({ data, onUpdate }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]   = useState(false);
   const [draft, setDraft] = useState(null);
+  const [flash, setFlash] = useState(false);
   const ref = useRef(null);
 
   // Only (re)seed the draft when the popover actually opens — NOT on every
@@ -23,7 +24,11 @@ export default function DayCell({ data, onUpdate }) {
   }, [open, draft]);
 
   function commit() {
-    if (draft) onUpdate(draft);
+    if (draft) {
+      onUpdate(draft);
+      setFlash(true);
+      setTimeout(() => setFlash(false), 1200);
+    }
     setOpen(false);
   }
 
@@ -53,7 +58,7 @@ export default function DayCell({ data, onUpdate }) {
     <td className="day-td">
       <div ref={ref} className="day-cell-wrap">
         <div
-          className={`day-cell status-${status}${!dollars && status === 'driving' ? ' empty' : ''}`}
+          className={`day-cell status-${status}${!dollars && status === 'driving' ? ' empty' : ''}${flash ? ' cell-flash' : ''}`}
           onClick={() => setOpen(o => !o)}
         >
           {status === 'HOME'    && <span className="pill home">🏠 HOME</span>}
