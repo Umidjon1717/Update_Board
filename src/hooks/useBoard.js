@@ -113,7 +113,10 @@ export function useBoard() {
 
   // ── updateDay ─────────────────────────────────────────────────────
   const updateDay = useCallback((driverId, weekKey, day, patch) => {
+    let savedCell = null;
+    let prevSnapshot = null;
     setDrivers(prev => {
+      prevSnapshot = prev;
       const next = prev.map(d => {
         if (d.id !== driverId) return d;
         const existingWeek = d.weeks[weekKey] || blankWeek();
@@ -125,8 +128,17 @@ export function useBoard() {
       });
       lsSave(next, meta);
       markSave();
-      const cell = next.find(d => d.id === driverId)?.weeks?.[weekKey]?.[day];
-      if (cell) dbSaveDay(driverId, weekKey, day, cell).then(markSave).catch(logFail('save day'));
+      savedCell = next.find(d => d.id === driverId)?.weeks?.[weekKey]?.[day];
+      if (savedCell) {
+        dbSaveDay(driverId, weekKey, day, savedCell)
+          .then(markSave)
+          .catch(err => {
+            logFail('save day')(err);
+            setDrivers(prevSnapshot);
+            lsSave(prevSnapshot, meta);
+            alert(`Could not save day data:\n${err.message || 'Unknown Supabase error'}`);
+          });
+      }
       return next;
     });
   }, [meta]);
@@ -157,7 +169,18 @@ export function useBoard() {
       const next = [...prev, newDriver];
       lsSave(next, meta);
       markSave();
-      dbSaveDriverInfo(newDriver).then(markSave).catch(logFail('add driver'));
+      dbSaveDriverInfo(newDriver)
+        .then(markSave)
+        .catch(err => {
+          logFail('add driver')(err);
+          // Revert the optimistic add so state stays consistent with the DB
+          setDrivers(curr => {
+            const reverted = curr.filter(d => d.id !== id);
+            lsSave(reverted, meta);
+            return reverted;
+          });
+          alert(`Could not add driver — database error:\n${err.message || 'Unknown Supabase error. Check RLS policies on ub_drivers.'}`);
+        });
       return next;
     });
   }, [meta]);

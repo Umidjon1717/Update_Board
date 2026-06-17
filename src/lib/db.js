@@ -50,7 +50,7 @@ export async function dbLoad() {
   const sb = getClient();
   if (!sb) return null;
   const [drRes, diRes, dayRes, metaRes] = await Promise.all([
-    sb.from('ub_drivers').select('*').order('sort_order,id'),
+    sb.from('ub_drivers').select('*').order('id'),
     sb.from('ub_dispatch').select('*'),
     sb.from('ub_week_days').select('*'),
     sb.from('ub_meta').select('*').eq('id', 1).maybeSingle(),
@@ -87,7 +87,6 @@ export async function dbSaveDriverInfo(driver) {
   await sb.from('ub_drivers').upsert({
     id: driver.id, name: driver.name,
     phone: driver.phone || '', truck: driver.truck || '', trailer: driver.trailer || '',
-    sort_order: driver.id,
   }, { onConflict: 'id' });
   if (driver.dispatch) await dbSaveDispatch(driver.id, driver.dispatch);
 }
@@ -113,7 +112,7 @@ export async function dbSaveMeta(meta) {
 export async function dbPushAll(drivers, meta) {
   const sb = getClient(); if (!sb) return;
   for (const d of drivers) {
-    await sb.from('ub_drivers').upsert({ id: d.id, name: d.name, phone: d.phone || '', truck: d.truck || '', trailer: d.trailer || '', sort_order: d.id }, { onConflict: 'id' });
+    await sb.from('ub_drivers').upsert({ id: d.id, name: d.name, phone: d.phone || '', truck: d.truck || '', trailer: d.trailer || '' }, { onConflict: 'id' });
     await sb.from('ub_dispatch').upsert({ driver_id: d.id, status: d.dispatch?.status || '', pu: d.dispatch?.pu || '', del_info: d.dispatch?.del || '', load_id: d.dispatch?.loadId || '', notes: d.dispatch?.notes || '' }, { onConflict: 'driver_id' });
     for (const [weekKey, weekData] of Object.entries(d.weeks || {})) {
       for (const day of DAYS) {
